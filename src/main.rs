@@ -68,6 +68,16 @@ fn main() -> Result<(), Box<dyn Error>> {
             AddressKind::Coin
         }));
     });
+    receive_adapter.on_qr_code(|s| {
+        let qr = qrcode::QrCode::new(s).unwrap();
+        let image = qr
+            .render()
+            .dark_color(qrcode::render::svg::Color("#FF8400"))
+            .light_color(qrcode::render::svg::Color("rgba(0,0,0,0)"))
+            .build();
+        slint::Image::load_from_svg_data(image.as_bytes()).unwrap()
+    });
+
     ui.run()?;
 
     Ok(())

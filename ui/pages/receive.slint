@@ -5,6 +5,8 @@ export global ReceiveAdapter {
     in-out property <string> space_address: "";
 
     callback generate_address(bool);
+
+    pure callback qr_code(string) -> image;
 }
 
 export component ReceivePage inherits Rectangle {
@@ -12,6 +14,10 @@ export component ReceivePage inherits Rectangle {
 
     function generate_address() {
         ReceiveAdapter.generate_address(is_space_address);
+    }
+
+    pure function current_address() -> string {
+        is_space_address ? ReceiveAdapter.space_address : ReceiveAdapter.coin_address
     }
 
     init => {
@@ -26,8 +32,14 @@ export component ReceivePage inherits Rectangle {
             }
         }
 
-        Text {
-            text: is_space_address ? ReceiveAdapter.space_address : ReceiveAdapter.coin_address;
+        if (current_address() != ""): VerticalLayout {
+            Text {
+                text: current_address();
+            }
+
+            Image {
+                source: ReceiveAdapter.qr_code(current_address());
+            }
         }
     }
 }

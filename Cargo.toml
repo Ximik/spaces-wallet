@@ -11,6 +11,7 @@ tokio = { version = "1.40", default-features = false, features = [
     "sync",
     "rt",
 ] }
+qrcode = { version = "0.14.1", default-features = false, features = ["svg"] }
 
 [build-dependencies]
 slint-build = "1.8.0"
