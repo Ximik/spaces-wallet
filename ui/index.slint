@@ -1,0 +1,38 @@
+import { ReceiveAdapter, ReceivePage } from "./pages/receive.slint";
+export { ReceiveAdapter }
+
+import { SideNav } from "./components/side_nav.slint";
+
+export component AppWindow inherits Window {
+    preferred-width: 700px;
+    preferred-height: 500px;
+    title: @tr("Spaces Wallet");
+    icon: @image-url("../assets/logo.png");
+
+    HorizontalLayout {
+        VerticalLayout {
+            width: 200px;
+            Rectangle {
+                Image {
+                    source: @image-url("../assets/logo.png");
+                    width: 50px;
+                    height: 50px;
+                    horizontal-alignment: center;
+                    image-fit: contain;
+                }
+            }
+
+            side-bar := SideNav {
+                model: [
+                    @tr("Home"),
+                    @tr("Receive"),
+                ];
+            }
+        }
+
+        if(side-bar.current-item == 0): Text {
+            text: "HOME";
+        }
+        if(side-bar.current-item == 1): ReceivePage { }
+    }
+}

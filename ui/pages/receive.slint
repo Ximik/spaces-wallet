@@ -1,0 +1,33 @@
+import { Switch } from "std-widgets.slint";
+
+export global ReceiveAdapter {
+    in-out property <string> coin_address: "";
+    in-out property <string> space_address: "";
+
+    callback generate_address(bool);
+}
+
+export component ReceivePage inherits Rectangle {
+    property <bool> is_space_address <=> switch.checked;
+
+    function generate_address() {
+        ReceiveAdapter.generate_address(is_space_address);
+    }
+
+    init => {
+        generate_address();
+    }
+
+    VerticalLayout {
+        switch := Switch {
+            text: "Space address";
+            toggled => {
+                generate_address();
+            }
+        }
+
+        Text {
+            text: is_space_address ? ReceiveAdapter.space_address : ReceiveAdapter.coin_address;
+        }
+    }
+}

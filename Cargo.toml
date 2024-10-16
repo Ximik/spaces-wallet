@@ -1,0 +1,16 @@
+[package]
+name = "spaces-wallet"
+version = "0.1.0"
+edition = "2021"
+
+[dependencies]
+slint = "1.8.0"
+spaced = { path = "../spaced/node" }
+jsonrpsee = { version = "0.22.5", features = ["http-client"] }
+tokio = { version = "1.40", default-features = false, features = [
+    "sync",
+    "rt",
+] }
+
+[build-dependencies]
+slint-build = "1.8.0"
