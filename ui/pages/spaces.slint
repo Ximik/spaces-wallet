@@ -5,6 +5,7 @@ export global SpacesAdapter {
         name: string,
     }> space;
 
+    pure callback validate_space(string) -> bool;
     callback load_space(string);
 }
 
@@ -13,15 +14,16 @@ export component Spaces inherits Rectangle {
         HorizontalLayout {
             LineEdit {
                 accepted => {
-                    SpacesAdapter.load_space(self.text);
+                    if (SpacesAdapter.validate_space(self.text)) {
+                        SpacesAdapter.load_space(self.text);
+                    }
                 }
             }
         }
 
-        if SpacesAdapter.space.name != "": 
-            Rectangle {
+        if SpacesAdapter.space.name != "": Rectangle {
             Text {
-                text: SpacesAdapter.space.name;
+                text: "@" + SpacesAdapter.space.name;
             }
         }
 

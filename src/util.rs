@@ -16,10 +16,14 @@ pub fn default_testnet4_spaced_rpc_url() -> String {
     default_spaced_rpc_url(&spaced::config::ExtendedNetwork::Testnet4)
 }
 
-pub fn space_hash(spaceish: &str) -> Option<String> {
+pub fn space_sname(spaceish: &str) -> Option<SName> {
     let mut space = spaceish.to_ascii_lowercase();
     space.insert_str(0, "@");
-    SName::from_str(&space).ok().map(|sname| {
+    SName::from_str(&space).ok()
+}
+
+pub fn space_hash(spaceish: &str) -> Option<String> {
+    space_sname(spaceish).map(|sname| {
         let spacehash = SpaceHash::from(Sha256::hash(sname.to_bytes()));
         hex::encode(spacehash.as_slice())
     })

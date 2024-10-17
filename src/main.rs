@@ -112,6 +112,7 @@ fn main() -> Result<(), Box<dyn Error>> {
                     });
             });
         }
+        adapter.on_validate_space(|space| util::space_sname(&space).is_some());
     }
 
     ui.run()?;
