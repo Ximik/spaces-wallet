@@ -4896,7 +4896,9 @@ dependencies = [
 name = "spaces-wallet"
 version = "0.1.0"
 dependencies = [
+ "hex",
  "jsonrpsee",
+ "protocol",
  "qrcode",
  "slint",
  "slint-build",

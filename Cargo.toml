@@ -6,6 +6,8 @@ edition = "2021"
 [dependencies]
 slint = "1.8.0"
 spaced = { path = "../spaced/node" }
+protocol = { path = "../spaced/protocol" }
+hex = "0.4.3"
 jsonrpsee = { version = "0.22.5", features = ["http-client"] }
 tokio = { version = "1.40", default-features = false, features = [
     "sync",

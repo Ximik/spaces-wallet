@@ -9,7 +9,7 @@ export global ReceiveAdapter {
     pure callback qr_code(string) -> image;
 }
 
-export component ReceivePage inherits Rectangle {
+export component Receive inherits Rectangle {
     property <bool> is_space_address <=> switch.checked;
 
     function generate_address() {

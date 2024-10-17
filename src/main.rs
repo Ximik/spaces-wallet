@@ -4,24 +4,20 @@
 use std::error::Error;
 
 use jsonrpsee::http_client::HttpClientBuilder;
-use spaced::{
-    config::{default_spaces_rpc_port, ExtendedNetwork},
-    rpc::RpcClient,
-    wallets::AddressKind,
-};
+use protocol::Covenant;
+use spaced::{rpc::RpcClient, wallets::AddressKind};
 
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
 
-fn default_spaced_rpc_url(chain: &ExtendedNetwork) -> String {
-    format!("http://127.0.0.1:{}", default_spaces_rpc_port(chain))
-}
+mod util;
 
 slint::include_modules!();
 
 #[derive(Debug)]
 enum Command {
     GenerateAddress(AddressKind),
+    LoadSpace(String),
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -33,7 +29,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     std::thread::spawn(move || {
         let rt = Runtime::new().unwrap();
         rt.block_on(async move {
-            let spaced_rpc_url = default_spaced_rpc_url(&spaced::config::ExtendedNetwork::Testnet4);
+            let spaced_rpc_url = util::default_testnet4_spaced_rpc_url();
             let rpc = HttpClientBuilder::default().build(spaced_rpc_url).unwrap();
             rpc.wallet_load("default").await.unwrap();
 
@@ -55,31 +51,68 @@ fn main() -> Result<(), Box<dyn Error>> {
                             eprintln!("Failed to invoke UI update: {}", e);
                         });
                     }
-                };
+                    Command::LoadSpace(space) => {
+                        if let Some(space_hash) = util::space_hash(&space) {
+                            let result = rpc
+                                .get_space(&space_hash)
+                                .await
+                                .unwrap()
+                                .and_then(|out| out.spaceout.space);
+                            let ui_handle = ui_handle.clone();
+                            slint::invoke_from_event_loop(move || {
+                                if let Some(ui) = ui_handle.upgrade() {
+                                    let adapter = ui.global::<SpacesAdapter>();
+                                    adapter.set_space((space.into(),));
+                                }
+                            })
+                            .unwrap_or_else(|e| {
+                                eprintln!("Failed to invoke UI update: {}", e);
+                            });
+                        }
+                    }
+                }
             }
         });
     });
 
-    let receive_adapter = ui.global::<ReceiveAdapter>();
-    receive_adapter.on_generate_address(move |is_space_address| {
-        tx.send(Command::GenerateAddress(if is_space_address {
-            AddressKind::Space
-        } else {
-            AddressKind::Coin
-        }))
-        .unwrap_or_else(|e| {
-            eprintln!("Failed to send command: {}", e);
+    {
+        let adapter = ui.global::<ReceiveAdapter>();
+        {
+            let tx = tx.clone();
+            adapter.on_generate_address(move |is_space_address| {
+                tx.send(Command::GenerateAddress(if is_space_address {
+                    AddressKind::Space
+                } else {
+                    AddressKind::Coin
+                }))
+                .unwrap_or_else(|e| {
+                    eprintln!("Failed to send command: {}", e);
+                });
+            });
+        }
+        adapter.on_qr_code(|s| {
+            let qr = qrcode::QrCode::new(s).unwrap();
+            let image = qr
+                .render()
+                .dark_color(qrcode::render::svg::Color("#FF8400"))
+                .light_color(qrcode::render::svg::Color("rgba(0,0,0,0)"))
+                .build();
+            slint::Image::load_from_svg_data(image.as_bytes()).unwrap()
         });
-    });
-    receive_adapter.on_qr_code(|s| {
-        let qr = qrcode::QrCode::new(s).unwrap();
-        let image = qr
-            .render()
-            .dark_color(qrcode::render::svg::Color("#FF8400"))
-            .light_color(qrcode::render::svg::Color("rgba(0,0,0,0)"))
-            .build();
-        slint::Image::load_from_svg_data(image.as_bytes()).unwrap()
-    });
+    }
+
+    {
+        let adapter = ui.global::<SpacesAdapter>();
+        {
+            let tx = tx.clone();
+            adapter.on_load_space(move |space| {
+                tx.send(Command::LoadSpace(space.into()))
+                    .unwrap_or_else(|e| {
+                        eprintln!("Failed to send command: {}", e);
+                    });
+            });
+        }
+    }
 
     ui.run()?;
 

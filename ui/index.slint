@@ -1,7 +1,10 @@
 import { Palette } from "std-widgets.slint";
 
-import { ReceiveAdapter, ReceivePage } from "./pages/receive.slint";
+import { ReceiveAdapter, Receive } from "./pages/receive.slint";
 export { ReceiveAdapter }
+
+import { SpacesAdapter, Spaces } from "./pages/spaces.slint";
+export { SpacesAdapter }
 
 import { SideNav } from "./components/side_nav.slint";
 
@@ -30,6 +33,7 @@ export component AppWindow inherits Window {
                     model: [
                         @tr("Home"),
                         @tr("Receive"),
+                        @tr("Spaces"),
                     ];
                 }
             }
@@ -39,7 +43,8 @@ export component AppWindow inherits Window {
             if(side-bar.current-item == 0): Text {
                 text: "HOME";
             }
-            if(side-bar.current-item == 1): ReceivePage { }
+            if(side-bar.current-item == 1): Receive { }
+            if(side-bar.current-item == 2): Spaces { }
         }
     }
 }

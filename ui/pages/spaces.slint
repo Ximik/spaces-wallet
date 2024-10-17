@@ -1,0 +1,30 @@
+import { LineEdit } from "std-widgets.slint";
+
+export global SpacesAdapter {
+    in-out property <{
+        name: string,
+    }> space;
+
+    callback load_space(string);
+}
+
+export component Spaces inherits Rectangle {
+    VerticalLayout {
+        HorizontalLayout {
+            LineEdit {
+                accepted => {
+                    SpacesAdapter.load_space(self.text);
+                }
+            }
+        }
+
+        if SpacesAdapter.space.name != "": 
+            Rectangle {
+            Text {
+                text: SpacesAdapter.space.name;
+            }
+        }
+
+        Rectangle { }
+    }
+}
