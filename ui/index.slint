@@ -1,3 +1,5 @@
+import { Palette } from "std-widgets.slint";
+
 import { ReceiveAdapter, ReceivePage } from "./pages/receive.slint";
 export { ReceiveAdapter }
 
@@ -13,6 +15,7 @@ export component AppWindow inherits Window {
         VerticalLayout {
             width: 200px;
             Rectangle {
+                background: Palette.control-background;
                 Image {
                     source: @image-url("../assets/logo.png");
                     width: 50px;
@@ -22,17 +25,21 @@ export component AppWindow inherits Window {
                 }
             }
 
-            side-bar := SideNav {
-                model: [
-                    @tr("Home"),
-                    @tr("Receive"),
-                ];
+            Rectangle {
+                side-bar := SideNav {
+                    model: [
+                        @tr("Home"),
+                        @tr("Receive"),
+                    ];
+                }
             }
         }
 
-        if(side-bar.current-item == 0): Text {
-            text: "HOME";
+        Rectangle {
+            if(side-bar.current-item == 0): Text {
+                text: "HOME";
+            }
+            if(side-bar.current-item == 1): ReceivePage { }
         }
-        if(side-bar.current-item == 1): ReceivePage { }
     }
 }

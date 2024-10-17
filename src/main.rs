@@ -66,7 +66,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             AddressKind::Space
         } else {
             AddressKind::Coin
-        }));
+        }))
+        .unwrap_or_else(|e| {
+            eprintln!("Failed to send command: {}", e);
+        });
     });
     receive_adapter.on_qr_code(|s| {
         let qr = qrcode::QrCode::new(s).unwrap();

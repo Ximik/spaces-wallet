@@ -1,11 +1,10 @@
 // Based on https://github.com/slint-ui/slint/blob/master/examples/gallery/ui/side_bar.slint
 
-import { HorizontalBox, VerticalBox, Palette } from "std-widgets.slint";
+import { HorizontalBox, Palette } from "std-widgets.slint";
 
 component SideNavItem inherits Rectangle {
     in property <bool> selected;
-    in property <bool> has-focus;
-    in-out property <string> text <=> label.text;
+    in property <string> text <=> label.text;
 
     callback clicked <=> touch.clicked;
 
@@ -13,22 +12,22 @@ component SideNavItem inherits Rectangle {
 
     states [
         pressed when touch.pressed: {
+            label.color: Palette.selection-foreground;
             state.opacity: 0.8;
         }
         hover when touch.has-hover: {
+            label.color: Palette.selection-foreground;
             state.opacity: 0.6;
         }
         selected when root.selected: {
+            label.color: Palette.selection-foreground;
             state.opacity: 1;
-        }
-        focused when root.has-focus: {
-            state.opacity: 0.8;
         }
     ]
 
     state := Rectangle {
         opacity: 0;
-        background: Palette.background;
+        background: Palette.selection-background;
 
         animate opacity { duration: 150ms; }
     }
@@ -39,10 +38,14 @@ component SideNavItem inherits Rectangle {
 
         label := Text {
             vertical-alignment: center;
+            color: Palette.control-foreground;
+
+            animate color { duration: 150ms; }
         }
     }
 
     touch := TouchArea {
+        mouse-cursor: pointer;
         width: 100%;
         height: 100%;
     }
@@ -51,48 +54,8 @@ component SideNavItem inherits Rectangle {
 export component SideNav inherits Rectangle {
     in property <[string]> model: [];
     out property <int> current-item: 0;
-    out property <int> current-focused: fs.has-focus ? fs.focused-tab : -1; // The currently focused tab
 
-    width: 180px;
-    forward-focus: fs;
-    accessible-role: tab;
-    accessible-delegate-focus: root.current-focused >= 0 ? root.current-focused : root.current-item;
-
-    Rectangle {
-        background: Palette.background.darker(0.2);
-
-        fs := FocusScope {
-            key-pressed(event) => {
-                if (event.text == "\n") {
-                    root.current-item = root.current-focused;
-                    return accept;
-                }
-                if (event.text == Key.UpArrow) {
-                    self.focused-tab = Math.max(self.focused-tab - 1,  0);
-                    return accept;
-                }
-                if (event.text == Key.DownArrow) {
-                    self.focused-tab = Math.min(self.focused-tab + 1, root.model.length - 1);
-                    return accept;
-                }
-                return reject;
-            }
-
-            key-released(event) => {
-                if (event.text == " ") {
-                    root.current-item = root.current-focused;
-                    return accept;
-                }
-                return reject;
-            }
-
-            property <int> focused-tab: 0;
-
-            x: 0;
-            width: 0; // Do not react on clicks
-        }
-    }
-
+    background: Palette.control-background;
     navigation := VerticalLayout {
         alignment: start;
         vertical-stretch: 0;
@@ -100,10 +63,8 @@ export component SideNav inherits Rectangle {
             clicked => {
                 root.current-item = index;
             }
-
-            has-focus: index == root.current-focused;
-            text: item;
             selected: index == root.current-item;
+            text: item;
         }
     }
 }
