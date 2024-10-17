@@ -6,7 +6,7 @@ export { ReceiveAdapter }
 import { SpacesAdapter, Spaces } from "./pages/spaces.slint";
 export { SpacesAdapter }
 
-import { SideNav } from "./components/side_nav.slint";
+import { NavItem } from "./components/nav_item.slint";
 
 export component AppWindow inherits Window {
     preferred-width: 700px;
@@ -14,37 +14,49 @@ export component AppWindow inherits Window {
     title: @tr("Spaces Wallet");
     icon: @image-url("../assets/logo.png");
 
-    HorizontalLayout {
-        VerticalLayout {
-            width: 200px;
-            Rectangle {
-                background: Palette.control-background;
-                Image {
-                    source: @image-url("../assets/logo.png");
-                    width: 50px;
-                    height: 50px;
-                    horizontal-alignment: center;
-                    image-fit: contain;
-                }
-            }
+    in-out property <int> page: 0;
 
-            Rectangle {
-                side-bar := SideNav {
-                    model: [
-                        @tr("Home"),
-                        @tr("Receive"),
-                        @tr("Spaces"),
-                    ];
+    HorizontalLayout {
+        Rectangle {
+            width: 200px;
+            background: Palette.control-background;
+            VerticalLayout {
+                alignment: start;
+                vertical-stretch: 0;
+                Rectangle {
+                    Image {
+                        source: @image-url("../assets/logo.png");
+                        width: 50px;
+                        height: 50px;
+                        horizontal-alignment: center;
+                        image-fit: contain;
+                    }
+                }
+
+                for item[index] in [
+                    @tr("Home"),
+                    @tr("Receive"),
+                    @tr("Send"),
+                    @tr("Spaces"),
+                ]: NavItem {
+                    selected: page == index;
+                    text: item;
+                    clicked => {
+                        page = index
+                    }
                 }
             }
         }
 
         Rectangle {
-            if(side-bar.current-item == 0): Text {
+            if(page == 0): Text {
                 text: "HOME";
             }
-            if(side-bar.current-item == 1): Receive { }
-            if(side-bar.current-item == 2): Spaces { }
+            if(page == 1): Receive { }
+            if(page == 2): Text {
+                text: "SEND";
+            }
+            if(page == 3): Spaces { }
         }
     }
 }

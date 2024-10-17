@@ -1,4 +1,4 @@
-import { Switch } from "std-widgets.slint";
+import { Switch, LineEdit, VerticalBox } from "std-widgets.slint";
 
 export global ReceiveAdapter {
     in-out property <string> coin_address: "";
@@ -24,7 +24,9 @@ export component Receive inherits Rectangle {
         generate_address();
     }
 
-    VerticalLayout {
+    VerticalBox {
+        alignment: start;
+        vertical-stretch: 0;
         switch := Switch {
             text: "Space address";
             toggled => {
@@ -33,11 +35,16 @@ export component Receive inherits Rectangle {
         }
 
         if (current_address() != ""): VerticalLayout {
-            Text {
+            alignment: start;
+            vertical-stretch: 0;
+            LineEdit {
                 text: current_address();
+                read-only: true;
             }
 
             Image {
+                preferred-width: 250px;
+                preferred-height: 250px;
                 source: ReceiveAdapter.qr_code(current_address());
             }
         }

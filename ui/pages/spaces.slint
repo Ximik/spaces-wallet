@@ -1,4 +1,4 @@
-import { LineEdit } from "std-widgets.slint";
+import { LineEdit, Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
 
 export global SpacesAdapter {
     in-out property <{
@@ -10,12 +10,19 @@ export global SpacesAdapter {
 }
 
 export component Spaces inherits Rectangle {
-    VerticalLayout {
-        HorizontalLayout {
-            LineEdit {
+    VerticalBox {
+        HorizontalBox {
+            input := LineEdit {
                 accepted => {
-                    if (SpacesAdapter.validate_space(self.text)) {
-                        SpacesAdapter.load_space(self.text);
+                    submit.clicked();
+                }
+            }
+
+            submit := Button {
+                text: @tr("Search");
+                clicked => {
+                    if (SpacesAdapter.validate_space(input.text)) {
+                        SpacesAdapter.load_space(input.text);
                     }
                 }
             }

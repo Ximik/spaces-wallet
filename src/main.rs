@@ -5,6 +5,7 @@ use std::error::Error;
 
 use jsonrpsee::http_client::HttpClientBuilder;
 use protocol::Covenant;
+use slint::Weak;
 use spaced::{rpc::RpcClient, wallets::AddressKind};
 
 use tokio::runtime::Runtime;
@@ -26,6 +27,7 @@ fn main() -> Result<(), Box<dyn Error>> {
     let (tx, mut rx) = mpsc::unbounded_channel::<Command>();
 
     let ui_handle = ui.as_weak();
+
     std::thread::spawn(move || {
         let rt = Runtime::new().unwrap();
         rt.block_on(async move {
