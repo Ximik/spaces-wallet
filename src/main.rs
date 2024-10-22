@@ -4,6 +4,7 @@
 use std::error::Error;
 
 use jsonrpsee::http_client::HttpClientBuilder;
+use protocol::bitcoin::amount;
 use protocol::Covenant;
 use slint::Weak;
 use spaced::{rpc::RpcClient, wallets::AddressKind};
@@ -99,6 +100,10 @@ fn main() -> Result<(), Box<dyn Error>> {
             .unwrap_or_else(|e| {
                 eprintln!("Failed to send command: {}", e);
             });
+    });
+    let txc = tx.clone();
+    ui.on_send_coins(move |address, amount| {
+        println!("{:?} {:?}", address, amount);
     });
 
     ui.global::<QrCodeAdapter>().on_qr_code(|s| {

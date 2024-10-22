@@ -2,6 +2,7 @@ import { Palette } from "std-widgets.slint";
 
 import { Space } from "./types.slint";
 
+import { SendPage } from "./pages/send.slint";
 import { ReceivePage } from "./pages/receive.slint";
 import { SpacePage } from "./pages/space.slint";
 
@@ -17,7 +18,7 @@ export component AppWindow inherits Window {
     icon: @image-url("../assets/logo.png");
 
     in-out property <int> page: 0;
-    in property <string> error: "";
+    in-out property <string> error: "";
 
     in property <string> coin_address: "";
     in property <string> space_address: "";
@@ -26,6 +27,7 @@ export component AppWindow inherits Window {
 
     in property <Space> current_space;
     callback load_space(string);
+    callback send_coins(string, int);
 
     VerticalLayout {
         if (error != ""): Rectangle {
@@ -62,7 +64,8 @@ export component AppWindow inherits Window {
                         selected: page == index;
                         text: item;
                         clicked => {
-                            page = index
+                            error = "";
+                            page = index;
                         }
                     }
                 }
@@ -82,8 +85,14 @@ export component AppWindow inherits Window {
                     coin_address: coin_address;
                     space_address: space_address;
                 }
-                if(page == 2): Text {
-                    text: "SEND";
+                if(page == 2): SendPage {
+                    send(address, amount) => {
+                        if (amount <= 0) {
+                            error = @tr("Enter amount");
+                        } else {
+                            send_coins(address, amount);
+                        }
+                    }
                 }
                 if(page == 3): SpacePage {
                     load_space(s) => {

@@ -1,0 +1,41 @@
+import { LineEdit, Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
+
+export component SendPage inherits Rectangle {
+    callback send(string, int);
+
+    VerticalBox {
+        Text {
+            text: @tr("Address");
+        }
+
+        address := LineEdit {
+            accepted => {
+                submit.clicked();
+            }
+        }
+
+        Text {
+            text: @tr("Amount");
+        }
+
+        amount := LineEdit {
+            input-type: InputType.number;
+            accepted => {
+                submit.clicked();
+            }
+        }
+
+        submit := Button {
+            text: @tr("Send");
+            clicked => {
+                if amount.text.is-float() {
+                    send(address.text, amount.text.to-float());
+                } else {
+                    send(address.text, -1);
+                }
+            }
+        }
+
+        Rectangle { }
+    }
+}
