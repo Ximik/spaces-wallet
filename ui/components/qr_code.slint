@@ -1,0 +1,8 @@
+export global QrCodeAdapter {
+    pure callback qr_code(string) -> image;
+}
+
+export component QrCode inherits Image {
+    in property <string> code;
+    source: QrCodeAdapter.qr_code(code);
+}

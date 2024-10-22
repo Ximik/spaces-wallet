@@ -1,12 +1,14 @@
 import { Palette } from "std-widgets.slint";
 
-import { ReceiveAdapter, Receive } from "./pages/receive.slint";
-export { ReceiveAdapter }
+import { Space } from "./types.slint";
 
-import { SpacesAdapter, Spaces } from "./pages/spaces.slint";
-export { SpacesAdapter }
+import { ReceivePage } from "./pages/receive.slint";
+import { SpacePage } from "./pages/space.slint";
 
 import { NavItem } from "./components/nav_item.slint";
+
+import { QrCodeAdapter } from "./components/qr_code.slint";
+export { QrCodeAdapter }
 
 export component AppWindow inherits Window {
     preferred-width: 700px;
@@ -15,48 +17,81 @@ export component AppWindow inherits Window {
     icon: @image-url("../assets/logo.png");
 
     in-out property <int> page: 0;
+    in property <string> error: "";
 
-    HorizontalLayout {
-        Rectangle {
-            width: 200px;
-            background: Palette.control-background;
-            VerticalLayout {
-                alignment: start;
-                vertical-stretch: 0;
-                Rectangle {
-                    Image {
-                        source: @image-url("../assets/logo.png");
-                        width: 50px;
-                        height: 50px;
-                        horizontal-alignment: center;
-                        image-fit: contain;
-                    }
-                }
+    in property <string> coin_address: "";
+    in property <string> space_address: "";
+    callback generate_coin_address();
+    callback generate_space_address();
 
-                for item[index] in [
-                    @tr("Home"),
-                    @tr("Receive"),
-                    @tr("Send"),
-                    @tr("Spaces"),
-                ]: NavItem {
-                    selected: page == index;
-                    text: item;
-                    clicked => {
-                        page = index
-                    }
-                }
+    in property <Space> current_space;
+    callback load_space(string);
+
+    VerticalLayout {
+        if (error != ""): Rectangle {
+            background: rgb(200,0,0);
+            Text {
+                text: error;
+                color: rgb(255,255,255);
             }
         }
 
-        Rectangle {
-            if(page == 0): Text {
-                text: "HOME";
+        HorizontalLayout {
+            Rectangle {
+                width: 200px;
+                background: Palette.control-background;
+                VerticalLayout {
+                    alignment: start;
+                    vertical-stretch: 0;
+                    Rectangle {
+                        Image {
+                            source: @image-url("../assets/logo.png");
+                            width: 50px;
+                            height: 50px;
+                            horizontal-alignment: center;
+                            image-fit: contain;
+                        }
+                    }
+
+                    for item[index] in [
+                        @tr("Home"),
+                        @tr("Receive"),
+                        @tr("Send"),
+                        @tr("Spaces"),
+                    ]: NavItem {
+                        selected: page == index;
+                        text: item;
+                        clicked => {
+                            page = index
+                        }
+                    }
+                }
             }
-            if(page == 1): Receive { }
-            if(page == 2): Text {
-                text: "SEND";
+
+            Rectangle {
+                if(page == 0): Text {
+                    text: "HOME";
+                }
+                if(page == 1): ReceivePage {
+                    generate_coin_address => {
+                        generate_coin_address()
+                    }
+                    generate_space_address => {
+                        generate_space_address()
+                    }
+                    coin_address: coin_address;
+                    space_address: space_address;
+                }
+                if(page == 2): Text {
+                    text: "SEND";
+                }
+                if(page == 3): SpacePage {
+                    load_space(s) => {
+                        load_space(s)
+                    }
+                    space: current_space;
+                }
             }
-            if(page == 3): Spaces { }
         }
     }
 }

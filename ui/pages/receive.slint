@@ -1,27 +1,20 @@
 import { Switch, LineEdit, VerticalBox } from "std-widgets.slint";
+import { QrCode } from "../components/qr_code.slint";
 
-export global ReceiveAdapter {
-    in-out property <string> coin_address: "";
-    in-out property <string> space_address: "";
 
-    callback generate_address(bool);
-
-    pure callback qr_code(string) -> image;
-}
-
-export component Receive inherits Rectangle {
+export component ReceivePage inherits Rectangle {
     property <bool> is_space_address <=> switch.checked;
+    in property <string> coin_address: "";
+    in property <string> space_address: "";
 
-    function generate_address() {
-        ReceiveAdapter.generate_address(is_space_address);
-    }
+    callback generate_coin_address();
+    callback generate_space_address();
 
-    pure function current_address() -> string {
-        is_space_address ? ReceiveAdapter.space_address : ReceiveAdapter.coin_address
-    }
+    property <string> current_address: is_space_address ? space_address : coin_address;
 
     init => {
-        generate_address();
+        generate_space_address();
+        generate_coin_address();
     }
 
     VerticalBox {
@@ -29,23 +22,20 @@ export component Receive inherits Rectangle {
         vertical-stretch: 0;
         switch := Switch {
             text: "Space address";
-            toggled => {
-                generate_address();
-            }
         }
 
-        if (current_address() != ""): VerticalLayout {
+        if (current_address != ""): VerticalLayout {
             alignment: start;
             vertical-stretch: 0;
             LineEdit {
-                text: current_address();
+                text: current_address;
                 read-only: true;
             }
 
-            Image {
+            QrCode {
                 preferred-width: 250px;
                 preferred-height: 250px;
-                source: ReceiveAdapter.qr_code(current_address());
+                code: current_address;
             }
         }
     }

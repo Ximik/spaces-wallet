@@ -42,10 +42,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                         let ui_handle = ui_handle.clone();
                         slint::invoke_from_event_loop(move || {
                             if let Some(ui) = ui_handle.upgrade() {
-                                let adapter = ui.global::<ReceiveAdapter>();
                                 match kind {
-                                    AddressKind::Coin => adapter.set_coin_address(address.into()),
-                                    AddressKind::Space => adapter.set_space_address(address.into()),
+                                    AddressKind::Coin => ui.set_coin_address(address.into()),
+                                    AddressKind::Space => ui.set_space_address(address.into()),
                                 };
                             }
                         })
@@ -55,21 +54,24 @@ fn main() -> Result<(), Box<dyn Error>> {
                     }
                     Command::LoadSpace(space) => {
                         if let Some(space_hash) = util::space_hash(&space) {
-                            let result = rpc
+                            let space = rpc
                                 .get_space(&space_hash)
                                 .await
-                                .unwrap()
+                                .unwrap_or_default()
                                 .and_then(|out| out.spaceout.space);
-                            let ui_handle = ui_handle.clone();
-                            slint::invoke_from_event_loop(move || {
-                                if let Some(ui) = ui_handle.upgrade() {
-                                    let adapter = ui.global::<SpacesAdapter>();
-                                    adapter.set_space((space.into(),));
-                                }
-                            })
-                            .unwrap_or_else(|e| {
-                                eprintln!("Failed to invoke UI update: {}", e);
-                            });
+                            if let Some(space) = space {
+                                let ui_handle = ui_handle.clone();
+                                slint::invoke_from_event_loop(move || {
+                                    if let Some(ui) = ui_handle.upgrade() {
+                                        ui.set_current_space(Space {
+                                            name: space.name.to_string().into(),
+                                        })
+                                    }
+                                })
+                                .unwrap_or_else(|e| {
+                                    eprintln!("Failed to invoke UI update: {}", e);
+                                });
+                            }
                         }
                     }
                 }
@@ -77,45 +79,37 @@ fn main() -> Result<(), Box<dyn Error>> {
         });
     });
 
-    {
-        let adapter = ui.global::<ReceiveAdapter>();
-        {
-            let tx = tx.clone();
-            adapter.on_generate_address(move |is_space_address| {
-                tx.send(Command::GenerateAddress(if is_space_address {
-                    AddressKind::Space
-                } else {
-                    AddressKind::Coin
-                }))
-                .unwrap_or_else(|e| {
-                    eprintln!("Failed to send command: {}", e);
-                });
+    let txc = tx.clone();
+    ui.on_generate_coin_address(move || {
+        txc.send(Command::GenerateAddress(AddressKind::Coin))
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to send command: {}", e);
             });
-        }
-        adapter.on_qr_code(|s| {
-            let qr = qrcode::QrCode::new(s).unwrap();
-            let image = qr
-                .render()
-                .dark_color(qrcode::render::svg::Color("#FF8400"))
-                .light_color(qrcode::render::svg::Color("rgba(0,0,0,0)"))
-                .build();
-            slint::Image::load_from_svg_data(image.as_bytes()).unwrap()
-        });
-    }
+    });
+    let txc = tx.clone();
+    ui.on_generate_space_address(move || {
+        txc.send(Command::GenerateAddress(AddressKind::Space))
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to send command: {}", e);
+            });
+    });
+    let txc = tx.clone();
+    ui.on_load_space(move |space| {
+        txc.send(Command::LoadSpace(space.into()))
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to send command: {}", e);
+            });
+    });
 
-    {
-        let adapter = ui.global::<SpacesAdapter>();
-        {
-            let tx = tx.clone();
-            adapter.on_load_space(move |space| {
-                tx.send(Command::LoadSpace(space.into()))
-                    .unwrap_or_else(|e| {
-                        eprintln!("Failed to send command: {}", e);
-                    });
-            });
-        }
-        adapter.on_validate_space(|space| util::space_sname(&space).is_some());
-    }
+    ui.global::<QrCodeAdapter>().on_qr_code(|s| {
+        let qr = qrcode::QrCode::new(s).unwrap();
+        let image = qr
+            .render()
+            .dark_color(qrcode::render::svg::Color("#FF8400"))
+            .light_color(qrcode::render::svg::Color("rgba(0,0,0,0)"))
+            .build();
+        slint::Image::load_from_svg_data(image.as_bytes()).unwrap()
+    });
 
     ui.run()?;
 

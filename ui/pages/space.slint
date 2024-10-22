@@ -1,15 +1,11 @@
 import { LineEdit, Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
+import { Space } from "../types.slint";
+import { QrCode } from "../components/qr_code.slint";
 
-export global SpacesAdapter {
-    in-out property <{
-        name: string,
-    }> space;
-
-    pure callback validate_space(string) -> bool;
+export component SpacePage inherits Rectangle {
+    in property <Space> space;
     callback load_space(string);
-}
 
-export component Spaces inherits Rectangle {
     VerticalBox {
         HorizontalBox {
             input := LineEdit {
@@ -21,16 +17,14 @@ export component Spaces inherits Rectangle {
             submit := Button {
                 text: @tr("Search");
                 clicked => {
-                    if (SpacesAdapter.validate_space(input.text)) {
-                        SpacesAdapter.load_space(input.text);
-                    }
+                    load_space(input.text);
                 }
             }
         }
 
-        if SpacesAdapter.space.name != "": Rectangle {
+        if space.name != "": Rectangle {
             Text {
-                text: "@" + SpacesAdapter.space.name;
+                text: space.name;
             }
         }
 
