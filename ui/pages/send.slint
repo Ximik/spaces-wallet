@@ -1,37 +1,54 @@
 import { LineEdit, Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
+import { Validators } from "../validators.slint";
 
 export component SendPage inherits Rectangle {
     callback send(string, int);
 
+    property <string> recipient;
+    property <string> amount;
+
+    property <bool> recipient_err;
+    property <bool> amount_err;
+
     VerticalBox {
         Text {
-            text: @tr("Address");
+            text: @tr("Recipient");
         }
 
-        address := LineEdit {
+        LineEdit {
+            text <=> recipient;
             accepted => {
                 submit.clicked();
             }
+        }
+
+        if recipient_err: Text {
+            text: @tr("Recipient must be an address");
         }
 
         Text {
             text: @tr("Amount");
         }
 
-        amount := LineEdit {
+        LineEdit {
             input-type: InputType.number;
+            text <=> amount;
             accepted => {
                 submit.clicked();
             }
         }
 
+        if amount_err: Text {
+            text: @tr("Amount must be a number");
+        }
+
         submit := Button {
             text: @tr("Send");
             clicked => {
-                if amount.text.is-float() {
-                    send(address.text, amount.text.to-float());
-                } else {
-                    send(address.text, -1);
+                recipient_err = !Validators.is_coin_address(recipient);
+                amount_err = !amount.is-float();
+                if !recipient_err && !amount_err {
+                    send(recipient, amount.to-float());
                 }
             }
         }

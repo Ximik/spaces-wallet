@@ -1,6 +1,8 @@
 import { Palette } from "std-widgets.slint";
 
 import { Space } from "./types.slint";
+import { Validators } from "./validators.slint";
+export { Validators }
 
 import { SendPage } from "./pages/send.slint";
 import { ReceivePage } from "./pages/receive.slint";
@@ -87,11 +89,7 @@ export component AppWindow inherits Window {
                 }
                 if(page == 2): SendPage {
                     send(address, amount) => {
-                        if (amount <= 0) {
-                            error = @tr("Enter amount");
-                        } else {
-                            send_coins(address, amount);
-                        }
+                        send_coins(address, amount);
                     }
                 }
                 if(page == 3): SpacePage {

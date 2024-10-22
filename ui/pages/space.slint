@@ -1,14 +1,21 @@
 import { LineEdit, Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
 import { Space } from "../types.slint";
+import { Validators } from "../validators.slint";
 import { QrCode } from "../components/qr_code.slint";
 
 export component SpacePage inherits Rectangle {
     in property <Space> space;
+
+    property <bool> space_name_err;
     callback load_space(string);
 
     VerticalBox {
         HorizontalBox {
             input := LineEdit {
+                placeholder-text: @tr("Space name");
+                edited => {
+                    space_name_err = false;
+                }
                 accepted => {
                     submit.clicked();
                 }
@@ -17,9 +24,14 @@ export component SpacePage inherits Rectangle {
             submit := Button {
                 text: @tr("Search");
                 clicked => {
+                    space_name_err = !Validators.is_space_name(input.text);
                     load_space(input.text);
                 }
             }
+        }
+
+        if space_name_err: Text {
+            text: @tr("Space name must be valid");
         }
 
         if space.name != "": Rectangle {

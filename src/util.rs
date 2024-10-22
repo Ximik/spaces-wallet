@@ -1,3 +1,4 @@
+use bdk_wallet::bitcoin;
 use protocol::{
     hasher::{KeyHasher, SpaceHash},
     sname::{NameLike, SName},
@@ -18,7 +19,9 @@ pub fn default_testnet4_spaced_rpc_url() -> String {
 
 pub fn space_sname(spaceish: &str) -> Option<SName> {
     let mut space = spaceish.to_ascii_lowercase();
-    space.insert_str(0, "@");
+    if !space.starts_with('@') {
+        space.insert_str(0, "@");
+    }
     SName::from_str(&space).ok()
 }
 
@@ -27,4 +30,10 @@ pub fn space_hash(spaceish: &str) -> Option<String> {
         let spacehash = SpaceHash::from(Sha256::hash(sname.to_bytes()));
         hex::encode(spacehash.as_slice())
     })
+}
+
+pub fn coin_address(
+    addr: &str,
+) -> Option<bitcoin::address::Address<bitcoin::address::NetworkUnchecked>> {
+    bitcoin::address::Address::from_str(addr).ok()
 }

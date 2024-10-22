@@ -20,6 +20,7 @@ slint::include_modules!();
 enum Command {
     GenerateAddress(AddressKind),
     LoadSpace(String),
+    SendCoins(u64, String),
 }
 
 fn main() -> Result<(), Box<dyn Error>> {
@@ -75,6 +76,9 @@ fn main() -> Result<(), Box<dyn Error>> {
                             }
                         }
                     }
+                    Command::SendCoins(amount, address) => {
+                        println!("{:?} {:?}", amount, address);
+                    }
                 }
             }
         });
@@ -103,7 +107,10 @@ fn main() -> Result<(), Box<dyn Error>> {
     });
     let txc = tx.clone();
     ui.on_send_coins(move |address, amount| {
-        println!("{:?} {:?}", address, amount);
+        txc.send(Command::SendCoins(amount as u64, address.into()))
+            .unwrap_or_else(|e| {
+                eprintln!("Failed to send command: {}", e);
+            });
     });
 
     ui.global::<QrCodeAdapter>().on_qr_code(|s| {
@@ -115,6 +122,11 @@ fn main() -> Result<(), Box<dyn Error>> {
             .build();
         slint::Image::load_from_svg_data(image.as_bytes()).unwrap()
     });
+
+    ui.global::<Validators>()
+        .on_is_space_name(|s| util::space_hash(&s.to_string()).is_some());
+    ui.global::<Validators>()
+        .on_is_coin_address(|s| util::coin_address(&s.to_string()).is_some());
 
     ui.run()?;
 
