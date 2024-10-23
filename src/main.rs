@@ -4,10 +4,14 @@
 use std::error::Error;
 
 use jsonrpsee::http_client::HttpClientBuilder;
-use protocol::bitcoin::amount;
-use protocol::Covenant;
-use slint::Weak;
-use spaced::{rpc::RpcClient, wallets::AddressKind};
+use protocol::bitcoin::Amount;
+use spaced::{
+    rpc::{
+        BidParams, ExecuteParams, OpenParams, RegisterParams, RpcClient, RpcWalletRequest,
+        RpcWalletTxBuilder, SendCoinsParams, TransferSpacesParams,
+    },
+    wallets::AddressKind,
+};
 
 use tokio::runtime::Runtime;
 use tokio::sync::mpsc;
@@ -77,7 +81,22 @@ fn main() -> Result<(), Box<dyn Error>> {
                         }
                     }
                     Command::SendCoins(amount, address) => {
-                        println!("{:?} {:?}", amount, address);
+                        let result = rpc
+                            .wallet_send_request(
+                                "default",
+                                RpcWalletTxBuilder {
+                                    auction_outputs: None,
+                                    requests: vec![RpcWalletRequest::SendCoins(SendCoinsParams {
+                                        amount: Amount::from_sat(amount),
+                                        to: address,
+                                    })],
+                                    fee_rate: None,
+                                    dust: None,
+                                    force: false,
+                                },
+                            )
+                            .await;
+                        println!("{:?}", result);
                     }
                 }
             }

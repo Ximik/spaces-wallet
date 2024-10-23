@@ -44,11 +44,15 @@ export component SendPage inherits Rectangle {
 
         submit := Button {
             text: @tr("Send");
+            enabled: true;
             clicked => {
-                recipient_err = !Validators.is_coin_address(recipient);
-                amount_err = !amount.is-float();
-                if !recipient_err && !amount_err {
-                    send(recipient, amount.to-float());
+                if submit.enabled {
+                    recipient_err = !Validators.is_coin_address(recipient);
+                    amount_err = !amount.is-float();
+                    if !recipient_err && !amount_err {
+                        submit.enabled = false;
+                        send(recipient, amount.to-float());
+                    }
                 }
             }
         }

@@ -1,4 +1,4 @@
-use bdk_wallet::bitcoin;
+use protocol::bitcoin;
 use protocol::{
     hasher::{KeyHasher, SpaceHash},
     sname::{NameLike, SName},

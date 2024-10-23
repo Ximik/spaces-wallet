@@ -4896,7 +4896,6 @@ dependencies = [
 name = "spaces-wallet"
 version = "0.1.0"
 dependencies = [
- "bdk_wallet",
  "hex",
  "jsonrpsee",
  "protocol",

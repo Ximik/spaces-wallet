@@ -1,7 +1,6 @@
 import { Switch, LineEdit, VerticalBox } from "std-widgets.slint";
 import { QrCode } from "../components/qr_code.slint";
 
-
 export component ReceivePage inherits Rectangle {
     property <bool> is_space_address <=> switch.checked;
     in property <string> coin_address: "";
@@ -21,7 +20,7 @@ export component ReceivePage inherits Rectangle {
         alignment: start;
         vertical-stretch: 0;
         switch := Switch {
-            text: "Space address";
+            text: @tr("Space address");
         }
 
         if (current_address != ""): VerticalLayout {
