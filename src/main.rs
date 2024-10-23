@@ -142,10 +142,24 @@ fn main() -> Result<(), Box<dyn Error>> {
         slint::Image::load_from_svg_data(image.as_bytes()).unwrap()
     });
 
-    ui.global::<Validators>()
-        .on_is_space_name(|s| util::space_hash(&s.to_string()).is_some());
-    ui.global::<Validators>()
-        .on_is_coin_address(|s| util::coin_address(&s.to_string()).is_some());
+    ui.global::<Validators>().on_space_name(|s| {
+        if !s.chars().all(|c| c.is_alphanumeric() || c == '@') {
+            ValidatorResult::Reject
+        } else if util::space_hash(&s.to_string()).is_some() {
+            ValidatorResult::Valid
+        } else {
+            ValidatorResult::Invalid
+        }
+    });
+    ui.global::<Validators>().on_coin_address(|s| {
+        if !s.chars().all(|c| c.is_alphanumeric() || c == '@') {
+            ValidatorResult::Reject
+        } else if util::coin_address(&s.to_string()).is_some() {
+            ValidatorResult::Valid
+        } else {
+            ValidatorResult::Invalid
+        }
+    });
 
     ui.run()?;
 

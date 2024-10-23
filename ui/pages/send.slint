@@ -1,5 +1,5 @@
 import { LineEdit, Button, HorizontalBox, VerticalBox } from "std-widgets.slint";
-import { Validators } from "../validators.slint";
+// import { Validators } from "../validators.slint";
 
 export component SendPage inherits Rectangle {
     callback send(string, int);
@@ -47,7 +47,8 @@ export component SendPage inherits Rectangle {
             enabled: true;
             clicked => {
                 if submit.enabled {
-                    recipient_err = !Validators.is_coin_address(recipient);
+                    recipient_err = false;
+                    //!Validators.is_coin_address(recipient);
                     amount_err = !amount.is-float();
                     if !recipient_err && !amount_err {
                         submit.enabled = false;

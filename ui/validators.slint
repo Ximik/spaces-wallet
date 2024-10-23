@@ -1,4 +1,10 @@
+export enum ValidatorResult {
+    Valid,
+    Invalid,
+    Reject
+}
+
 export global Validators {
-    pure callback is_space_name(string) -> bool;
-    pure callback is_coin_address(string) -> bool;
+    pure callback space_name(string) -> ValidatorResult;
+    pure callback coin_address(string) -> ValidatorResult;
 }
