@@ -8,7 +8,10 @@ use crate::{
 };
 use iced::{
     font,
-    widget::{button, center, column, container, row, scrollable, text, text_input, Column, Space},
+    widget::{
+        button, center, column, container, horizontal_rule, row, scrollable, text, text_input,
+        Column, Space,
+    },
     Center, Element, Fill, FillPortion, Right,
 };
 
@@ -276,6 +279,7 @@ impl State {
                             })
                             .size(18),
                         Space::with_height(5),
+                        horizontal_rule(1),
                         row![
                             text("Space")
                                 .font(font::Font {
@@ -289,7 +293,10 @@ impl State {
                                     ..font::Font::DEFAULT
                                 })
                                 .width(FillPortion(2)),
-                        ],
+                        ]
+                        .padding([10, 0]),
+                        horizontal_rule(1),
+                        Space::with_height(5),
                         Column::with_children(transfer_spaces.map(|(slabel, expire_height)| {
                             row![
                                 text(slabel.to_string()).width(FillPortion(1)),
@@ -316,6 +323,7 @@ impl State {
                             })
                             .size(18),
                         Space::with_height(5),
+                        horizontal_rule(1),
                         row![
                             text("Space")
                                 .font(font::Font {
@@ -335,7 +343,10 @@ impl State {
                                     ..font::Font::DEFAULT
                                 })
                                 .width(FillPortion(2)),
-                        ],
+                        ]
+                        .padding([10, 0]),
+                        horizontal_rule(1),
+                        Space::with_height(5),
                         Column::with_children(bid_spaces.map(
                             |(slabel, total_burned, claim_height)| {
                                 row![
