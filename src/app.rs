@@ -700,7 +700,7 @@ impl App {
                 }
                 Route::Spaces => {
                     if self.screen == Screen::Spaces {
-                        self.spaces_screen.set_slabel(String::new());
+                        self.spaces_screen.set_no_space();
                     } else {
                         self.screen = Screen::Spaces;
                     }
@@ -712,8 +712,7 @@ impl App {
                 }
                 Route::Space(slabel) => {
                     self.screen = Screen::Spaces;
-                    self.spaces_screen
-                        .set_slabel(slabel.as_str_unprefixed().unwrap().to_string());
+                    self.spaces_screen.set_slabel(&slabel);
                     Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
                 }
             },

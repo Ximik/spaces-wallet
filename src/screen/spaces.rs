@@ -13,7 +13,7 @@ use iced::{
 
 #[derive(Debug, Clone, Default)]
 pub struct State {
-    slabel: String,
+    space: String,
     amount: String,
     fee_rate: String,
     error: Option<String>,
@@ -21,8 +21,8 @@ pub struct State {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    SlabelSet(SLabel),
-    SlabelInput(String),
+    SLabelSet(SLabel),
+    SpaceInput(String),
     AmountInput(String),
     FeeRateInput(String),
     OpenSubmit,
@@ -57,24 +57,28 @@ impl State {
         self.error = Some(error)
     }
 
-    pub fn set_slabel(&mut self, slabel: String) {
-        self.slabel = slabel
+    pub fn set_no_space(&mut self) {
+        self.space = String::new()
+    }
+
+    pub fn set_slabel(&mut self, slabel: &SLabel) {
+        self.space = slabel.as_str_unprefixed().unwrap().to_string()
     }
 
     pub fn get_slabel(&self) -> Option<SLabel> {
-        slabel_from_str(&self.slabel)
+        slabel_from_str(&self.space)
     }
 
     pub fn update(&mut self, message: Message) -> Task {
         self.error = None;
         match message {
-            Message::SlabelSet(slabel) => {
-                self.slabel = slabel.to_string_unprefixed().unwrap();
+            Message::SLabelSet(slabel) => {
+                self.space = slabel.to_string_unprefixed().unwrap();
                 Task::GetSpaceInfo { slabel }
             }
-            Message::SlabelInput(slabel) => {
-                if is_slabel_input(&slabel) {
-                    self.slabel = slabel;
+            Message::SpaceInput(space) => {
+                if is_slabel_input(&space) {
+                    self.space = space;
                     if let Some(slabel) = self.get_slabel() {
                         Task::GetSpaceInfo { slabel }
                     } else {
@@ -235,7 +239,7 @@ impl State {
         spaces: &'a SpacesState,
         wallet_spaces: &'a Vec<SLabel>,
     ) -> Element<'a, Message> {
-        let main: Element<'a, Message> = if self.slabel.is_empty() {
+        let main: Element<'a, Message> = if self.space.is_empty() {
             let mut spaces = wallet_spaces
                 .into_iter()
                 .map(|slabel| (slabel, spaces.get(slabel)))
@@ -272,7 +276,7 @@ impl State {
                         row![
                             text(slabel.to_string()).width(FillPortion(1)),
                             text(height_to_est(*expire_height, tip_height)).width(FillPortion(1)),
-                            container(button("View").on_press(Message::SlabelSet(slabel.clone())))
+                            container(button("View").on_press(Message::SLabelSet(slabel.clone())))
                                 .width(FillPortion(1))
                                 .align_x(Right),
                         ]
@@ -302,7 +306,7 @@ impl State {
                                 )
                                 .width(FillPortion(1)),
                                 container(
-                                    button("View").on_press(Message::SlabelSet(slabel.clone()))
+                                    button("View").on_press(Message::SLabelSet(slabel.clone()))
                                 )
                                 .width(FillPortion(1))
                                 .align_x(Right),
@@ -343,14 +347,14 @@ impl State {
 
         column![
             container(
-                text_input("space", &self.slabel)
+                text_input("space", &self.space)
                     .icon(text_input_icon(
                         Icon::At,
                         None,
                         10.0,
                         text_input::Side::Left
                     ))
-                    .on_input(Message::SlabelInput)
+                    .on_input(Message::SpaceInput)
                     .font(Font::MONOSPACE)
                     .padding(10)
             )
