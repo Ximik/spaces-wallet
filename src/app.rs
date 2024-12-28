@@ -698,7 +698,11 @@ impl App {
                     ])
                 }
                 Route::Spaces => {
-                    self.screen = Screen::Spaces;
+                    if self.screen == Screen::Spaces {
+                        self.spaces_screen.set_slabel(String::new());
+                    } else {
+                        self.screen = Screen::Spaces;
+                    }
                     if let Some(slabel) = self.spaces_screen.get_slabel() {
                         Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
                     } else {
@@ -811,16 +815,10 @@ impl App {
                         .receive_screen
                         .view(wallet.coin_address.as_ref(), wallet.space_address.as_ref(),)
                         .map(Message::ReceiveScreen),
-                    Screen::Spaces => {
-                        let slabel = self.spaces_screen.get_slabel();
-                        self.spaces_screen
-                            .view(
-                                self.tip_height,
-                                slabel.as_ref().map(|s| self.spaces.get(s)),
-                                slabel.as_ref().map_or(false, |s| wallet.spaces.contains(s)),
-                            )
-                            .map(Message::SpacesScreen)
-                    }
+                    Screen::Spaces => self
+                        .spaces_screen
+                        .view(self.tip_height, &self.spaces, &wallet.spaces)
+                        .map(Message::SpacesScreen),
                 })
             ]
             .into()

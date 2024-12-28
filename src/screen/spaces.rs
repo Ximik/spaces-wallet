@@ -7,8 +7,8 @@ use crate::{
     },
 };
 use iced::{
-    widget::{center, column, container, row, text, text_input, Space},
-    Element, Fill, Font,
+    widget::{button, center, column, container, row, scrollable, text, text_input, Column, Space},
+    Center, Element, Fill, FillPortion, Font, Right,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -21,6 +21,7 @@ pub struct State {
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    SlabelSet(SLabel),
     SlabelInput(String),
     AmountInput(String),
     FeeRateInput(String),
@@ -52,13 +53,6 @@ pub enum Task {
 }
 
 impl State {
-    pub fn new(slabel: String) -> Self {
-        Self {
-            slabel,
-            ..Self::default()
-        }
-    }
-
     pub fn set_error(&mut self, error: String) {
         self.error = Some(error)
     }
@@ -74,6 +68,10 @@ impl State {
     pub fn update(&mut self, message: Message) -> Task {
         self.error = None;
         match message {
+            Message::SlabelSet(slabel) => {
+                self.slabel = slabel.to_string_unprefixed().unwrap();
+                Task::GetSpaceInfo { slabel }
+            }
             Message::SlabelInput(slabel) => {
                 if is_slabel_input(&slabel) {
                     self.slabel = slabel;
@@ -234,29 +232,113 @@ impl State {
     pub fn view<'a>(
         &'a self,
         tip_height: u32,
-        covenant: Option<Option<&'a Option<Covenant>>>,
-        is_owned: bool,
+        spaces: &'a SpacesState,
+        wallet_spaces: &'a Vec<SLabel>,
     ) -> Element<'a, Message> {
-        let main: Element<'a, Message> = match covenant {
-            None | Some(Some(Some(Covenant::Reserved))) => {
-                text("Enter a valid space name in the input above").into()
-            }
-            Some(None) => Space::new(Fill, Fill).into(),
-            Some(Some(None)) => self.open_view(),
-            Some(Some(Some(Covenant::Bid {
-                claim_height,
-                total_burned,
-                ..
-            }))) => {
-                if claim_height.map_or(false, |height| height <= tip_height) {
-                    self.claim_view(*total_burned, is_owned)
-                } else {
-                    self.bid_view(tip_height, *claim_height)
+        let main: Element<'a, Message> = if self.slabel.is_empty() {
+            let mut spaces = wallet_spaces
+                .into_iter()
+                .map(|slabel| (slabel, spaces.get(slabel)))
+                .collect::<Vec<_>>();
+            spaces.sort_unstable_by_key(|s| s.0.as_str_unprefixed().unwrap());
+
+            let transfer_spaces = spaces
+                .iter()
+                .filter_map(|(slabel, covenant)| match covenant {
+                    Some(Some(Covenant::Transfer { expire_height, .. })) => {
+                        Some((*slabel, expire_height))
+                    }
+                    _ => None,
+                });
+            let bid_spaces = spaces
+                .iter()
+                .filter_map(|(slabel, covenant)| match covenant {
+                    Some(Some(Covenant::Bid {
+                        total_burned,
+                        claim_height,
+                        ..
+                    })) => Some((*slabel, total_burned, claim_height)),
+                    _ => None,
+                });
+
+            scrollable(column![
+                column![
+                    text("Registered"),
+                    row![
+                        text("Space").width(FillPortion(1)),
+                        text("Expires").width(FillPortion(2)),
+                    ],
+                    Column::with_children(transfer_spaces.map(|(slabel, expire_height)| {
+                        row![
+                            text(slabel.to_string()).width(FillPortion(1)),
+                            text(height_to_est(*expire_height, tip_height)).width(FillPortion(1)),
+                            container(button("View").on_press(Message::SlabelSet(slabel.clone())))
+                                .width(FillPortion(1))
+                                .align_x(Right),
+                        ]
+                        .align_y(Center)
+                        .into()
+                    })),
+                ],
+                column![
+                    text("Bid"),
+                    row![
+                        text("Space").width(FillPortion(1)),
+                        text("Highest Bid").width(FillPortion(1)),
+                        text("Claim").width(FillPortion(2)),
+                    ],
+                    Column::with_children(bid_spaces.map(
+                        |(slabel, total_burned, claim_height)| {
+                            row![
+                                text(slabel.to_string()).width(FillPortion(1)),
+                                text(
+                                    total_burned.to_string_with_denomination(Denomination::Satoshi)
+                                )
+                                .width(FillPortion(1)),
+                                text(
+                                    claim_height
+                                        .map(|h| height_to_est(h, tip_height))
+                                        .unwrap_or("pre-auction".to_string())
+                                )
+                                .width(FillPortion(1)),
+                                container(
+                                    button("View").on_press(Message::SlabelSet(slabel.clone()))
+                                )
+                                .width(FillPortion(1))
+                                .align_x(Right),
+                            ]
+                            .align_y(Center)
+                            .into()
+                        }
+                    )),
+                ]
+            ])
+            .spacing(10)
+            .into()
+        } else if let Some(slabel) = self.get_slabel() {
+            let is_owned = wallet_spaces.contains(&slabel);
+            let covenant = spaces.get(&slabel);
+            match covenant {
+                None => text("loading").into(),
+                Some(None) => self.open_view(),
+                Some(Some(Covenant::Bid {
+                    claim_height,
+                    total_burned,
+                    ..
+                })) => {
+                    if claim_height.map_or(false, |height| height <= tip_height) {
+                        self.claim_view(*total_burned, is_owned)
+                    } else {
+                        self.bid_view(tip_height, *claim_height)
+                    }
                 }
+                Some(Some(Covenant::Transfer { expire_height, .. })) => {
+                    self.registered_view(tip_height, *expire_height, is_owned)
+                }
+                Some(Some(Covenant::Reserved)) => unreachable!("reserved"),
             }
-            Some(Some(Some(Covenant::Transfer { expire_height, .. }))) => {
-                self.registered_view(tip_height, *expire_height, is_owned)
-            }
+        } else {
+            text("Invalid space name").into()
         };
 
         column![
