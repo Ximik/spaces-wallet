@@ -773,13 +773,17 @@ impl App {
 
     fn view(&self) -> Element<Message> {
         let navbar_button = |label, icon: Icon, route: Route, screen: Screen| {
-            let button = button(row![text_icon(icon).size(18), text(label)].spacing(10))
-                .style(if self.screen == screen {
-                    button::primary
-                } else {
-                    button::text
-                })
-                .width(Fill);
+            let button = button(
+                row![text_icon(icon).size(20), text(label).size(16)]
+                    .spacing(10)
+                    .align_y(Center),
+            )
+            .style(if self.screen == screen {
+                button::primary
+            } else {
+                button::text
+            })
+            .width(Fill);
             button.on_press(Message::NavigateTo(route))
         };
 
@@ -796,6 +800,8 @@ impl App {
                     ),
                     navbar_button("Spaces", Icon::At, Route::Spaces, Screen::Spaces,),
                 ]
+                .padding(10)
+                .spacing(5)
                 .width(200),
                 vertical_rule(3),
                 container(match &self.screen {

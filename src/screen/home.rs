@@ -28,7 +28,7 @@ pub fn view<'a>(balance: Amount, transactions: &'a Vec<TxInfo>) -> Element<'a, M
                             } else {
                                 Icon::ArrowDownToArc
                             }),
-                            text(txid.clone()).font(Font::MONOSPACE),
+                            text(txid.clone()),
                             horizontal_space(),
                             button_icon(Icon::Copy)
                                 .style(button::secondary)

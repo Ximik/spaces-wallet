@@ -7,8 +7,9 @@ use crate::{
     },
 };
 use iced::{
+    font,
     widget::{button, center, column, container, row, scrollable, text, text_input, Column, Space},
-    Center, Element, Fill, FillPortion, Font, Right,
+    Center, Element, Fill, FillPortion, Right,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -265,58 +266,108 @@ impl State {
                     _ => None,
                 });
 
-            scrollable(column![
+            scrollable(
                 column![
-                    text("Registered"),
-                    row![
-                        text("Space").width(FillPortion(1)),
-                        text("Expires").width(FillPortion(2)),
-                    ],
-                    Column::with_children(transfer_spaces.map(|(slabel, expire_height)| {
+                    column![
+                        text("Registered")
+                            .font(font::Font {
+                                weight: font::Weight::Bold,
+                                ..font::Font::DEFAULT
+                            })
+                            .size(18),
+                        Space::with_height(5),
                         row![
-                            text(slabel.to_string()).width(FillPortion(1)),
-                            text(height_to_est(*expire_height, tip_height)).width(FillPortion(1)),
-                            container(button("View").on_press(Message::SLabelSet(slabel.clone())))
-                                .width(FillPortion(1))
-                                .align_x(Right),
-                        ]
-                        .align_y(Center)
-                        .into()
-                    })),
-                ],
-                column![
-                    text("Bid"),
-                    row![
-                        text("Space").width(FillPortion(1)),
-                        text("Highest Bid").width(FillPortion(1)),
-                        text("Claim").width(FillPortion(2)),
-                    ],
-                    Column::with_children(bid_spaces.map(
-                        |(slabel, total_burned, claim_height)| {
+                            text("Space")
+                                .font(font::Font {
+                                    weight: font::Weight::Bold,
+                                    ..font::Font::DEFAULT
+                                })
+                                .width(FillPortion(1)),
+                            text("Expires")
+                                .font(font::Font {
+                                    weight: font::Weight::Bold,
+                                    ..font::Font::DEFAULT
+                                })
+                                .width(FillPortion(2)),
+                        ],
+                        Column::with_children(transfer_spaces.map(|(slabel, expire_height)| {
                             row![
                                 text(slabel.to_string()).width(FillPortion(1)),
-                                text(
-                                    total_burned.to_string_with_denomination(Denomination::Satoshi)
-                                )
-                                .width(FillPortion(1)),
-                                text(
-                                    claim_height
-                                        .map(|h| height_to_est(h, tip_height))
-                                        .unwrap_or("pre-auction".to_string())
-                                )
-                                .width(FillPortion(1)),
+                                text(height_to_est(*expire_height, tip_height))
+                                    .width(FillPortion(1)),
                                 container(
-                                    button("View").on_press(Message::SLabelSet(slabel.clone()))
+                                    button("View")
+                                        .style(button::secondary)
+                                        .on_press(Message::SLabelSet(slabel.clone()))
                                 )
                                 .width(FillPortion(1))
                                 .align_x(Right),
                             ]
                             .align_y(Center)
                             .into()
-                        }
-                    )),
+                        }))
+                        .spacing(3),
+                    ],
+                    column![
+                        text("Bid")
+                            .font(font::Font {
+                                weight: font::Weight::Bold,
+                                ..font::Font::DEFAULT
+                            })
+                            .size(18),
+                        Space::with_height(5),
+                        row![
+                            text("Space")
+                                .font(font::Font {
+                                    weight: font::Weight::Bold,
+                                    ..font::Font::DEFAULT
+                                })
+                                .width(FillPortion(1)),
+                            text("Highest Bid")
+                                .font(font::Font {
+                                    weight: font::Weight::Bold,
+                                    ..font::Font::DEFAULT
+                                })
+                                .width(FillPortion(1)),
+                            text("Claim")
+                                .font(font::Font {
+                                    weight: font::Weight::Bold,
+                                    ..font::Font::DEFAULT
+                                })
+                                .width(FillPortion(2)),
+                        ],
+                        Column::with_children(bid_spaces.map(
+                            |(slabel, total_burned, claim_height)| {
+                                row![
+                                    text(slabel.to_string()).width(FillPortion(1)),
+                                    text(
+                                        total_burned
+                                            .to_string_with_denomination(Denomination::Satoshi)
+                                    )
+                                    .width(FillPortion(1)),
+                                    text(
+                                        claim_height
+                                            .map(|h| height_to_est(h, tip_height))
+                                            .unwrap_or("pre-auction".to_string())
+                                    )
+                                    .width(FillPortion(1)),
+                                    container(
+                                        button("View")
+                                            .style(button::secondary)
+                                            .on_press(Message::SLabelSet(slabel.clone()))
+                                    )
+                                    .width(FillPortion(1))
+                                    .align_x(Right),
+                                ]
+                                .align_y(Center)
+                                .into()
+                            }
+                        ))
+                        .spacing(3),
+                    ]
                 ]
-            ])
+                .spacing(30),
+            )
             .spacing(10)
             .into()
         } else if let Some(slabel) = self.get_slabel() {
@@ -355,7 +406,7 @@ impl State {
                         text_input::Side::Left
                     ))
                     .on_input(Message::SpaceInput)
-                    .font(Font::MONOSPACE)
+                    .font(font::Font::MONOSPACE)
                     .padding(10)
             )
             .padding(20),
