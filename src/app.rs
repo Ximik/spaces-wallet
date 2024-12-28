@@ -680,6 +680,7 @@ impl App {
                     Task::batch([
                         Task::done(Message::RpcRequest(RpcRequest::GetBalance)),
                         Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces)),
+                        Task::done(Message::RpcRequest(RpcRequest::GetTransactions)),
                     ])
                 }
                 Route::Send => {
@@ -717,6 +718,7 @@ impl App {
                 }
             },
             Message::HomeScreen(message) => match message {
+                screen::home::Message::TxidCopyPress { txid } => clipboard::write(txid),
                 screen::home::Message::SpaceClicked { slabel } => {
                     Task::done(Message::NavigateTo(Route::Space(slabel)))
                 }
@@ -798,18 +800,8 @@ impl App {
                 .width(200),
                 vertical_rule(3),
                 container(match &self.screen {
-                    Screen::Home => screen::home::view(
-                        wallet.balance,
-                        self.tip_height,
-                        wallet
-                            .spaces
-                            .iter()
-                            .filter_map(|label| match self.spaces.get(label) {
-                                Some(Some(covenant)) => Some((label, covenant)),
-                                _ => None,
-                            })
-                    )
-                    .map(Message::HomeScreen),
+                    Screen::Home => screen::home::view(wallet.balance, &wallet.transactions)
+                        .map(Message::HomeScreen),
                     Screen::Send => self.send_screen.view().map(Message::SendScreen),
                     Screen::Receive => self
                         .receive_screen

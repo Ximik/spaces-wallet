@@ -38,6 +38,7 @@ impl State {
     }
 
     pub fn update(&mut self, message: Message) -> Task {
+        self.error = None;
         match message {
             Message::RecipientInput(recipient) => {
                 if is_recipient_input(&recipient) {
