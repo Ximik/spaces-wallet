@@ -1,7 +1,6 @@
 mod app;
 mod helpers;
 mod screen;
-mod store;
 mod types;
 mod widget;
 

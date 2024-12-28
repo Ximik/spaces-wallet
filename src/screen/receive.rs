@@ -1,7 +1,7 @@
 use iced::widget::{button, center, column, container, qr_code, row, text, toggler};
 use iced::{Border, Center, Element, Fill, Font, Padding, Theme};
 
-use crate::store::Address;
+use crate::types::*;
 use crate::widget::icon::{button_icon, Icon};
 
 #[derive(Debug, Clone, Default)]
@@ -34,8 +34,8 @@ impl State {
 
     pub fn view<'a>(
         &self,
-        coin_address: Option<&'a Address>,
-        space_address: Option<&'a Address>,
+        coin_address: Option<&'a AddressState>,
+        space_address: Option<&'a AddressState>,
     ) -> Element<'a, Message> {
         let address_block: Element<'a, Message> = match if self.coin_address {
             coin_address
@@ -45,10 +45,10 @@ impl State {
             Some(address) => column![
                 container(
                     row![
-                        text(&address.text).font(Font::MONOSPACE),
+                        text(address.as_str()).font(Font::MONOSPACE),
                         button_icon(Icon::Copy)
                             .style(button::secondary)
-                            .on_press(Message::CopyPress(address.text.clone())),
+                            .on_press(Message::CopyPress(address.as_str().to_string())),
                     ]
                     .align_y(Center)
                     .spacing(5),
@@ -67,7 +67,7 @@ impl State {
                         radius: 0.into(),
                     })
                 }),
-                center(qr_code(&address.qr_code).cell_size(7))
+                center(qr_code(address.as_qr_code()).cell_size(7))
                     .style(|theme: &Theme| {
                         let palette = theme.palette();
                         container::Style::default()

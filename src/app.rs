@@ -13,7 +13,7 @@ use spaced::rpc::{
 };
 
 use crate::screen;
-use crate::store::*;
+use crate::types::*;
 use crate::widget::{
     block::error,
     icon::{text_icon, Icon},
@@ -58,7 +58,7 @@ enum RpcRequest {
         slabel: SLabel,
     },
     LoadWallet {
-        wallet: String,
+        wallet_name: String,
     },
     GetBalance,
     GetWalletSpaces,
@@ -97,23 +97,23 @@ enum RpcResponse {
         result: RpcResult<Option<FullSpaceOut>>,
     },
     LoadWallet {
-        wallet: String,
+        wallet_name: String,
         result: RpcResult<()>,
     },
     GetBalance {
-        wallet: String,
+        wallet_name: String,
         result: RpcResult<Balance>,
     },
     GetTransactions {
-        wallet: String,
+        wallet_name: String,
         result: RpcResult<Vec<TxInfo>>,
     },
     GetWalletSpaces {
-        wallet: String,
+        wallet_name: String,
         result: RpcResult<Vec<WalletOutput>>,
     },
     GetAddress {
-        wallet: String,
+        wallet_name: String,
         address_kind: AddressKind,
         result: RpcResult<String>,
     },
@@ -136,8 +136,8 @@ enum Route {
     Home,
     Send,
     Receive,
-    Space(String),
-    Transactions,
+    Spaces,
+    Space(SLabel),
 }
 
 #[derive(Debug, Clone)]
@@ -145,27 +145,31 @@ enum Message {
     RpcRequest(RpcRequest),
     RpcResponse(RpcResponse),
     NavigateTo(Route),
-    ScreenHome(screen::home::Message),
-    ScreenSend(screen::send::Message),
-    ScreenReceive(screen::receive::Message),
-    ScreenSpace(screen::space::Message),
-    ScreenTransactions(screen::transactions::Message),
+    HomeScreen(screen::home::Message),
+    SendScreen(screen::send::Message),
+    ReceiveScreen(screen::receive::Message),
+    SpacesScreen(screen::spaces::Message),
 }
 
-#[derive(Debug, Clone)]
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
 enum Screen {
     Home,
-    Send(screen::send::State),
-    Receive(screen::receive::State),
-    Space(screen::space::State),
-    Transactions,
+    Send,
+    Receive,
+    Spaces,
 }
 
+#[derive(Debug)]
 pub struct App {
     rpc_client: Arc<HttpClient>,
     rpc_error: Option<String>,
-    store: Store,
     screen: Screen,
+    tip_height: u32,
+    wallet: Option<WalletState>,
+    spaces: SpacesState,
+    send_screen: screen::send::State,
+    receive_screen: screen::receive::State,
+    spaces_screen: screen::spaces::State,
 }
 
 impl App {
@@ -196,11 +200,16 @@ impl App {
             Self {
                 rpc_client,
                 rpc_error: None,
-                store: Default::default(),
                 screen: Screen::Home,
+                tip_height: 0,
+                wallet: None,
+                spaces: Default::default(),
+                send_screen: Default::default(),
+                receive_screen: Default::default(),
+                spaces_screen: Default::default(),
             },
             Task::done(Message::RpcRequest(RpcRequest::LoadWallet {
-                wallet: args.wallet.into(),
+                wallet_name: args.wallet.into(),
             })),
         )
     }
@@ -232,22 +241,32 @@ impl App {
                         },
                         Message::RpcResponse,
                     ),
-                    RpcRequest::LoadWallet { wallet } => Task::perform(
+                    RpcRequest::LoadWallet { wallet_name } => Task::perform(
                         async move {
-                            let result = client.wallet_load(&wallet).await.map_err(RpcError::from);
-                            RpcResponse::LoadWallet { wallet, result }
+                            let result = client
+                                .wallet_load(&wallet_name)
+                                .await
+                                .map_err(RpcError::from);
+                            RpcResponse::LoadWallet {
+                                wallet_name,
+                                result,
+                            }
                         },
                         Message::RpcResponse,
                     ),
                     RpcRequest::GetBalance => {
-                        if let Some(wallet) = self.store.get_wallet_name() {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
                             Task::perform(
                                 async move {
                                     let result = client
-                                        .wallet_get_balance(&wallet)
+                                        .wallet_get_balance(&wallet_name)
                                         .await
                                         .map_err(RpcError::from);
-                                    RpcResponse::GetBalance { wallet, result }
+                                    RpcResponse::GetBalance {
+                                        wallet_name,
+                                        result,
+                                    }
                                 },
                                 Message::RpcResponse,
                             )
@@ -256,14 +275,18 @@ impl App {
                         }
                     }
                     RpcRequest::GetWalletSpaces => {
-                        if let Some(wallet) = self.store.get_wallet_name() {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
                             Task::perform(
                                 async move {
                                     let result = client
-                                        .wallet_list_spaces(&wallet)
+                                        .wallet_list_spaces(&wallet_name)
                                         .await
                                         .map_err(RpcError::from);
-                                    RpcResponse::GetWalletSpaces { wallet, result }
+                                    RpcResponse::GetWalletSpaces {
+                                        wallet_name,
+                                        result,
+                                    }
                                 },
                                 Message::RpcResponse,
                             )
@@ -272,14 +295,18 @@ impl App {
                         }
                     }
                     RpcRequest::GetTransactions => {
-                        if let Some(wallet) = self.store.get_wallet_name() {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
                             Task::perform(
                                 async move {
                                     let result = client
-                                        .wallet_list_transactions(&wallet, 100, 0)
+                                        .wallet_list_transactions(&wallet_name, 100, 0)
                                         .await
                                         .map_err(RpcError::from);
-                                    RpcResponse::GetTransactions { wallet, result }
+                                    RpcResponse::GetTransactions {
+                                        wallet_name,
+                                        result,
+                                    }
                                 },
                                 Message::RpcResponse,
                             )
@@ -288,15 +315,16 @@ impl App {
                         }
                     }
                     RpcRequest::GetAddress { address_kind } => {
-                        if let Some(wallet) = self.store.get_wallet_name() {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
                             Task::perform(
                                 async move {
                                     let result = client
-                                        .wallet_get_new_address(&wallet, address_kind)
+                                        .wallet_get_new_address(&wallet_name, address_kind)
                                         .await
                                         .map_err(RpcError::from);
                                     RpcResponse::GetAddress {
-                                        wallet,
+                                        wallet_name,
                                         address_kind,
                                         result,
                                     }
@@ -312,12 +340,13 @@ impl App {
                         amount,
                         fee_rate,
                     } => {
-                        if let Some(wallet) = self.store.get_wallet_name() {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
                             Task::perform(
                                 async move {
                                     let result = client
                                         .wallet_send_request(
-                                            &wallet,
+                                            &wallet_name,
                                             RpcWalletTxBuilder {
                                                 bidouts: None,
                                                 requests: vec![RpcWalletRequest::SendCoins(
@@ -349,14 +378,15 @@ impl App {
                         amount,
                         fee_rate,
                     } => {
-                        if let Some(wallet) = self.store.get_wallet_name() {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
                             Task::perform(
                                 async move {
                                     let name = slabel.to_string();
                                     let amount = amount.to_sat();
                                     let result = client
                                         .wallet_send_request(
-                                            &wallet,
+                                            &wallet_name,
                                             RpcWalletTxBuilder {
                                                 bidouts: None,
                                                 requests: vec![RpcWalletRequest::Open(
@@ -385,14 +415,15 @@ impl App {
                         amount,
                         fee_rate,
                     } => {
-                        if let Some(wallet) = self.store.get_wallet_name() {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
                             Task::perform(
                                 async move {
                                     let name = slabel.to_string();
                                     let amount = amount.to_sat();
                                     let result = client
                                         .wallet_send_request(
-                                            &wallet,
+                                            &wallet_name,
                                             RpcWalletTxBuilder {
                                                 bidouts: None,
                                                 requests: vec![RpcWalletRequest::Bid(BidParams {
@@ -418,12 +449,13 @@ impl App {
                         }
                     }
                     RpcRequest::RegisterSpace { slabel, fee_rate } => {
-                        if let Some(wallet) = self.store.get_wallet_name() {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
                             Task::perform(
                                 async move {
                                     let result = client
                                         .wallet_send_request(
-                                            &wallet,
+                                            &wallet_name,
                                             RpcWalletTxBuilder {
                                                 bidouts: None,
                                                 requests: vec![RpcWalletRequest::Register(
@@ -458,7 +490,7 @@ impl App {
                     RpcResponse::GetServerInfo { result } => {
                         match result {
                             Ok(server_info) => {
-                                self.store.tip_height = server_info.tip.height;
+                                self.tip_height = server_info.tip.height;
                             }
                             Err(e) => {
                                 self.rpc_error = Some(e.to_string());
@@ -469,7 +501,7 @@ impl App {
                     RpcResponse::GetSpaceInfo { slabel, result } => {
                         match result {
                             Ok(out) => {
-                                self.store.spaces.insert(
+                                self.spaces.insert(
                                     slabel,
                                     out.map(|out| out.spaceout.space.unwrap().covenant),
                                 );
@@ -480,9 +512,12 @@ impl App {
                         }
                         Task::none()
                     }
-                    RpcResponse::LoadWallet { wallet, result } => match result {
+                    RpcResponse::LoadWallet {
+                        wallet_name,
+                        result,
+                    } => match result {
                         Ok(_) => {
-                            self.store.wallet = Some(Wallet::new(wallet));
+                            self.wallet = Some(WalletState::new(wallet_name));
                             Task::done(Message::NavigateTo(Route::Home))
                         }
                         Err(e) => {
@@ -490,11 +525,16 @@ impl App {
                             Task::none()
                         }
                     },
-                    RpcResponse::GetBalance { wallet, result } => {
+                    RpcResponse::GetBalance {
+                        wallet_name,
+                        result,
+                    } => {
                         match result {
                             Ok(balance) => {
-                                if let Some(wallet) = self.store.get_wallet_with_name(&wallet) {
-                                    wallet.balance = balance.balance;
+                                if let Some(wallet) = self.wallet.as_mut() {
+                                    if wallet.name == wallet_name {
+                                        wallet.balance = balance.balance;
+                                    }
                                 }
                             }
                             Err(e) => {
@@ -503,21 +543,26 @@ impl App {
                         }
                         Task::none()
                     }
-                    RpcResponse::GetWalletSpaces { wallet, result } => {
+                    RpcResponse::GetWalletSpaces {
+                        wallet_name,
+                        result,
+                    } => {
                         match result {
                             Ok(spaces) => {
-                                let spaces: Vec<_> = spaces
-                                    .into_iter()
-                                    .map(|out| {
-                                        let space = out.space.unwrap();
-                                        self.store
-                                            .spaces
-                                            .insert(space.name.clone(), Some(space.covenant));
-                                        space.name
-                                    })
-                                    .collect();
-                                if let Some(wallet) = self.store.get_wallet_with_name(&wallet) {
-                                    wallet.spaces = spaces;
+                                if let Some(wallet) = self.wallet.as_mut() {
+                                    if wallet.name == wallet_name {
+                                        wallet.spaces = spaces
+                                            .into_iter()
+                                            .map(|out| {
+                                                let space = out.space.unwrap();
+                                                self.spaces.insert(
+                                                    space.name.clone(),
+                                                    Some(space.covenant),
+                                                );
+                                                space.name
+                                            })
+                                            .collect();
+                                    }
                                 }
                             }
                             Err(e) => {
@@ -526,11 +571,16 @@ impl App {
                         }
                         Task::none()
                     }
-                    RpcResponse::GetTransactions { wallet, result } => {
+                    RpcResponse::GetTransactions {
+                        wallet_name,
+                        result,
+                    } => {
                         match result {
                             Ok(transactions) => {
-                                if let Some(wallet) = self.store.get_wallet_with_name(&wallet) {
-                                    wallet.transactions = transactions;
+                                if let Some(wallet) = self.wallet.as_mut() {
+                                    if wallet.name == wallet_name {
+                                        wallet.transactions = transactions;
+                                    }
                                 }
                             }
                             Err(e) => {
@@ -540,17 +590,19 @@ impl App {
                         Task::none()
                     }
                     RpcResponse::GetAddress {
-                        wallet,
+                        wallet_name,
                         address_kind,
                         result,
                     } => {
                         match result {
                             Ok(address) => {
-                                if let Some(wallet) = self.store.get_wallet_with_name(&wallet) {
-                                    let address = Address::new(address);
-                                    match address_kind {
-                                        AddressKind::Coin => wallet.coin_address = Some(address),
-                                        AddressKind::Space => wallet.space_address = Some(address),
+                                if let Some(wallet) = self.wallet.as_mut() {
+                                    if wallet.name == wallet_name {
+                                        let address = Some(AddressState::new(address));
+                                        match address_kind {
+                                            AddressKind::Coin => wallet.coin_address = address,
+                                            AddressKind::Space => wallet.space_address = address,
+                                        }
                                     }
                                 }
                             }
@@ -561,12 +613,10 @@ impl App {
                         Task::none()
                     }
                     RpcResponse::SendCoins { result } => match result {
-                        Ok(_) => Task::done(Message::NavigateTo(Route::Transactions)),
+                        Ok(_) => Task::done(Message::NavigateTo(Route::Home)),
                         Err(RpcError::Call { code, message }) => {
                             if code == -1 {
-                                if let Screen::Send(state) = &mut self.screen {
-                                    state.set_error(message);
-                                }
+                                self.send_screen.set_error(message);
                             } else {
                                 self.rpc_error = Some(message);
                             }
@@ -578,12 +628,10 @@ impl App {
                         }
                     },
                     RpcResponse::OpenSpace { result } => match result {
-                        Ok(_) => Task::done(Message::NavigateTo(Route::Transactions)),
+                        Ok(_) => Task::done(Message::NavigateTo(Route::Home)),
                         Err(RpcError::Call { code, message }) => {
                             if code == -1 {
-                                if let Screen::Space(state) = &mut self.screen {
-                                    state.set_error(message);
-                                }
+                                self.spaces_screen.set_error(message);
                             } else {
                                 self.rpc_error = Some(message);
                             }
@@ -595,12 +643,10 @@ impl App {
                         }
                     },
                     RpcResponse::BidSpace { result } => match result {
-                        Ok(_) => Task::done(Message::NavigateTo(Route::Transactions)),
+                        Ok(_) => Task::done(Message::NavigateTo(Route::Home)),
                         Err(RpcError::Call { code, message }) => {
                             if code == -1 {
-                                if let Screen::Space(state) = &mut self.screen {
-                                    state.set_error(message);
-                                }
+                                self.spaces_screen.set_error(message);
                             } else {
                                 self.rpc_error = Some(message);
                             }
@@ -612,12 +658,10 @@ impl App {
                         }
                     },
                     RpcResponse::RegisterSpace { result } => match result {
-                        Ok(_) => Task::done(Message::NavigateTo(Route::Transactions)),
+                        Ok(_) => Task::done(Message::NavigateTo(Route::Home)),
                         Err(RpcError::Call { code, message }) => {
                             if code == -1 {
-                                if let Screen::Space(state) = &mut self.screen {
-                                    state.set_error(message);
-                                }
+                                self.spaces_screen.set_error(message);
                             } else {
                                 self.rpc_error = Some(message);
                             }
@@ -639,11 +683,11 @@ impl App {
                     ])
                 }
                 Route::Send => {
-                    self.screen = Screen::Send(Default::default());
+                    self.screen = Screen::Send;
                     Task::none()
                 }
                 Route::Receive => {
-                    self.screen = Screen::Receive(Default::default());
+                    self.screen = Screen::Receive;
                     Task::batch([
                         Task::done(Message::RpcRequest(RpcRequest::GetAddress {
                             address_kind: AddressKind::Coin,
@@ -653,133 +697,131 @@ impl App {
                         })),
                     ])
                 }
-                Route::Space(space_name) => {
-                    let state = screen::space::State::new(space_name);
-                    let slabel = state.get_slabel();
-                    self.screen = Screen::Space(state);
-                    if let Some(slabel) = slabel {
+                Route::Spaces => {
+                    self.screen = Screen::Spaces;
+                    if let Some(slabel) = self.spaces_screen.get_slabel() {
                         Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
                     } else {
-                        Task::none()
+                        Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces))
                     }
                 }
-                Route::Transactions => {
-                    self.screen = Screen::Transactions;
-                    Task::done(Message::RpcRequest(RpcRequest::GetTransactions))
+                Route::Space(slabel) => {
+                    self.screen = Screen::Spaces;
+                    self.spaces_screen
+                        .set_slabel(slabel.as_str_unprefixed().unwrap().to_string());
+                    Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
                 }
             },
-            Message::ScreenHome(message) => match message {
-                screen::home::Message::SpaceClicked { space_name } => {
-                    Task::done(Message::NavigateTo(Route::Space(space_name)))
+            Message::HomeScreen(message) => match message {
+                screen::home::Message::SpaceClicked { slabel } => {
+                    Task::done(Message::NavigateTo(Route::Space(slabel)))
                 }
             },
-            Message::ScreenSend(message) => {
-                if let Screen::Send(state) = &mut self.screen {
-                    match state.update(message) {
-                        screen::send::Task::SendCoins {
-                            recipient,
-                            amount,
-                            fee_rate,
-                        } => Task::done(Message::RpcRequest(RpcRequest::SendCoins {
-                            recipient,
-                            amount,
-                            fee_rate,
-                        })),
-                        screen::send::Task::None => Task::none(),
-                    }
-                } else {
-                    Task::none()
+            Message::SendScreen(message) => match self.send_screen.update(message) {
+                screen::send::Task::SendCoins {
+                    recipient,
+                    amount,
+                    fee_rate,
+                } => Task::done(Message::RpcRequest(RpcRequest::SendCoins {
+                    recipient,
+                    amount,
+                    fee_rate,
+                })),
+                screen::send::Task::None => Task::none(),
+            },
+            Message::ReceiveScreen(message) => match self.receive_screen.update(message) {
+                screen::receive::Task::WriteClipboard(s) => clipboard::write(s),
+                screen::receive::Task::None => Task::none(),
+            },
+            Message::SpacesScreen(message) => match self.spaces_screen.update(message) {
+                screen::spaces::Task::GetSpaceInfo { slabel } => {
+                    Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
                 }
-            }
-            Message::ScreenReceive(message) => {
-                if let Screen::Receive(state) = &mut self.screen {
-                    match state.update(message) {
-                        screen::receive::Task::WriteClipboard(s) => clipboard::write(s),
-                        screen::receive::Task::None => Task::none(),
-                    }
-                } else {
-                    Task::none()
+                screen::spaces::Task::OpenSpace {
+                    slabel,
+                    amount,
+                    fee_rate,
+                } => Task::done(Message::RpcRequest(RpcRequest::OpenSpace {
+                    slabel,
+                    amount,
+                    fee_rate,
+                })),
+                screen::spaces::Task::BidSpace {
+                    slabel,
+                    amount,
+                    fee_rate,
+                } => Task::done(Message::RpcRequest(RpcRequest::BidSpace {
+                    slabel,
+                    amount,
+                    fee_rate,
+                })),
+                screen::spaces::Task::ClaimSpace { slabel, fee_rate } => {
+                    Task::done(Message::RpcRequest(RpcRequest::RegisterSpace {
+                        slabel,
+                        fee_rate,
+                    }))
                 }
-            }
-            Message::ScreenSpace(message) => {
-                if let Screen::Space(state) = &mut self.screen {
-                    match state.update(message) {
-                        screen::space::Task::GetSpaceInfo { slabel } => {
-                            Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
-                        }
-                        screen::space::Task::OpenSpace {
-                            slabel,
-                            amount,
-                            fee_rate,
-                        } => Task::done(Message::RpcRequest(RpcRequest::OpenSpace {
-                            slabel,
-                            amount,
-                            fee_rate,
-                        })),
-                        screen::space::Task::BidSpace {
-                            slabel,
-                            amount,
-                            fee_rate,
-                        } => Task::done(Message::RpcRequest(RpcRequest::BidSpace {
-                            slabel,
-                            amount,
-                            fee_rate,
-                        })),
-                        screen::space::Task::ClaimSpace { slabel, fee_rate } => {
-                            Task::done(Message::RpcRequest(RpcRequest::RegisterSpace {
-                                slabel,
-                                fee_rate,
-                            }))
-                        }
-                        screen::space::Task::None => Task::none(),
-                    }
-                } else {
-                    Task::none()
-                }
-            }
-            Message::ScreenTransactions(message) => match message {
-                screen::transactions::Message::TxidCopyPress { txid } => clipboard::write(txid),
+                screen::spaces::Task::None => Task::none(),
             },
         }
     }
 
     fn view(&self) -> Element<Message> {
-        let main: Element<Message> = if self.store.wallet.is_some() {
+        let navbar_button = |label, icon: Icon, route: Route, screen: Screen| {
+            let button = button(row![text_icon(icon).size(18), text(label)].spacing(10))
+                .style(if self.screen == screen {
+                    button::primary
+                } else {
+                    button::text
+                })
+                .width(Fill);
+            button.on_press(Message::NavigateTo(route))
+        };
+
+        let main: Element<Message> = if let Some(wallet) = self.wallet.as_ref() {
             row![
-                navbar(&self.screen),
+                column![
+                    navbar_button("Home", Icon::Artboard, Route::Home, Screen::Home,),
+                    navbar_button("Send", Icon::ArrowDownFromArc, Route::Send, Screen::Send,),
+                    navbar_button(
+                        "Receive",
+                        Icon::ArrowDownToArc,
+                        Route::Receive,
+                        Screen::Receive,
+                    ),
+                    navbar_button("Spaces", Icon::At, Route::Spaces, Screen::Spaces,),
+                ]
+                .width(200),
                 vertical_rule(3),
                 container(match &self.screen {
                     Screen::Home => screen::home::view(
-                        self.store.wallet.as_ref().unwrap().balance,
-                        self.store.tip_height,
-                        self.store.get_wallet_spaces().unwrap(),
+                        wallet.balance,
+                        self.tip_height,
+                        wallet
+                            .spaces
+                            .iter()
+                            .filter_map(|label| match self.spaces.get(label) {
+                                Some(Some(covenant)) => Some((label, covenant)),
+                                _ => None,
+                            })
                     )
-                    .map(Message::ScreenHome),
-                    Screen::Send(state) => state.view().map(Message::ScreenSend),
-                    Screen::Receive(state) => state
-                        .view(
-                            self.store.wallet.as_ref().unwrap().coin_address.as_ref(),
-                            self.store.wallet.as_ref().unwrap().space_address.as_ref(),
-                        )
-                        .map(Message::ScreenReceive),
-                    Screen::Space(state) => {
-                        let slabel = state.get_slabel();
-                        state
+                    .map(Message::HomeScreen),
+                    Screen::Send => self.send_screen.view().map(Message::SendScreen),
+                    Screen::Receive => self
+                        .receive_screen
+                        .view(wallet.coin_address.as_ref(), wallet.space_address.as_ref(),)
+                        .map(Message::ReceiveScreen),
+                    Screen::Spaces => {
+                        let slabel = self.spaces_screen.get_slabel();
+                        self.spaces_screen
                             .view(
-                                self.store.tip_height,
-                                slabel.as_ref().map(|s| self.store.spaces.get(s)),
-                                slabel.as_ref().map_or(false, |s| {
-                                    self.store.wallet.as_ref().unwrap().spaces.contains(s)
-                                }),
+                                self.tip_height,
+                                slabel.as_ref().map(|s| self.spaces.get(s)),
+                                slabel.as_ref().map_or(false, |s| wallet.spaces.contains(s)),
                             )
-                            .map(Message::ScreenSpace)
+                            .map(Message::SpacesScreen)
                     }
-                    Screen::Transactions => screen::transactions::view(
-                        &self.store.wallet.as_ref().unwrap().transactions
-                    )
-                    .map(Message::ScreenTransactions),
                 })
-                .padding(10.0)
             ]
             .into()
         } else {
@@ -792,9 +834,9 @@ impl App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        if self.store.wallet.is_some() && self.rpc_error.is_none() {
+        if self.wallet.is_some() && self.rpc_error.is_none() {
             match self.screen {
-                Screen::Transactions => time::every(time::Duration::from_secs(5))
+                Screen::Home => time::every(time::Duration::from_secs(5))
                     .map(|_| Message::RpcRequest(RpcRequest::GetTransactions)),
                 _ => time::every(time::Duration::from_secs(5))
                     .map(|_| Message::RpcRequest(RpcRequest::GetServerInfo)),
@@ -803,52 +845,4 @@ impl App {
             Subscription::none()
         }
     }
-}
-
-fn navbar<'a>(screen: &'a Screen) -> Element<'a, Message> {
-    let navbar_button = |label, icon: Icon, route: Route, is_current: bool| {
-        let button = button(row![text_icon(icon).size(18), text(label)].spacing(10))
-            .style(if is_current {
-                button::primary
-            } else {
-                button::text
-            })
-            .width(Fill);
-        button.on_press(Message::NavigateTo(route))
-    };
-
-    container(column![
-        navbar_button(
-            "Home",
-            Icon::Artboard,
-            Route::Home,
-            matches!(screen, Screen::Home)
-        ),
-        navbar_button(
-            "Send",
-            Icon::ArrowDownFromArc,
-            Route::Send,
-            matches!(screen, Screen::Send(..))
-        ),
-        navbar_button(
-            "Receive",
-            Icon::ArrowDownToArc,
-            Route::Receive,
-            matches!(screen, Screen::Receive(..))
-        ),
-        navbar_button(
-            "Space",
-            Icon::At,
-            Route::Space(String::new()),
-            matches!(screen, Screen::Space(..))
-        ),
-        navbar_button(
-            "Transactions",
-            Icon::ArrowsExchange,
-            Route::Transactions,
-            matches!(screen, Screen::Transactions)
-        ),
-    ])
-    .width(200)
-    .into()
 }

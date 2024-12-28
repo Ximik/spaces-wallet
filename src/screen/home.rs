@@ -4,11 +4,11 @@ use iced::Alignment::Center;
 use iced::{Element, Fill, FillPortion};
 
 use crate::helpers::height_to_est;
-use crate::store::{Amount, Covenant, Denomination, SLabel};
+use crate::types::*;
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    SpaceClicked { space_name: String },
+    SpaceClicked { slabel: SLabel },
 }
 
 pub fn view<'a>(
@@ -39,57 +39,58 @@ pub fn view<'a>(
     column![
         text("Balance (SAT)"),
         text(balance.to_sat()),
-        text("Your spaces"),
-        scrollable(column![
-            column![
-                text("Registered"),
-                row![
-                    text("Space").width(FillPortion(1)),
-                    text("Expires").width(FillPortion(2)),
-                ],
-                Column::with_children(transfer_spaces.map(|(slabel, expire_height)| {
-                    row![
-                        text(slabel.to_string()).width(FillPortion(1)),
-                        text(height_to_est(*expire_height, tip_height)).width(FillPortion(1)),
-                        container(button("View").on_press(Message::SpaceClicked {
-                            space_name: slabel.to_string_unprefixed().unwrap()
-                        }))
-                        .width(FillPortion(1))
-                        .align_x(Right),
-                    ]
-                    .align_y(Center)
-                    .into()
-                })),
-            ],
-            column![
-                text("Bid"),
-                row![
-                    text("Space").width(FillPortion(1)),
-                    text("Highest Bid").width(FillPortion(1)),
-                    text("Claim").width(FillPortion(2)),
-                ],
-                Column::with_children(bid_spaces.map(|(slabel, total_burned, claim_height)| {
-                    let space_name = slabel.to_string_unprefixed().unwrap();
-                    row![
-                        text(slabel.to_string()).width(FillPortion(1)),
-                        text(total_burned.to_string_with_denomination(Denomination::Satoshi))
-                            .width(FillPortion(1)),
-                        text(
-                            claim_height
-                                .map(|h| height_to_est(h, tip_height))
-                                .unwrap_or("pre-auction".to_string())
-                        )
-                        .width(FillPortion(1)),
-                        container(button("View").on_press(Message::SpaceClicked { space_name }))
-                            .width(FillPortion(1))
-                            .align_x(Right),
-                    ]
-                    .align_y(Center)
-                    .into()
-                })),
-            ]
-        ])
-        .spacing(10)
+        // text("Your spaces"),
+        // scrollable(column![
+        //     column![
+        //         text("Registered"),
+        //         row![
+        //             text("Space").width(FillPortion(1)),
+        //             text("Expires").width(FillPortion(2)),
+        //         ],
+        //         Column::with_children(transfer_spaces.map(|(slabel, expire_height)| {
+        //             row![
+        //                 text(slabel.to_string()).width(FillPortion(1)),
+        //                 text(height_to_est(*expire_height, tip_height)).width(FillPortion(1)),
+        //                 container(button("View").on_press(Message::SpaceClicked {
+        //                     slabel: *slabel.clone(),
+        //                 }))
+        //                 .width(FillPortion(1))
+        //                 .align_x(Right),
+        //             ]
+        //             .align_y(Center)
+        //             .into()
+        //         })),
+        //     ],
+        //     column![
+        //         text("Bid"),
+        //         row![
+        //             text("Space").width(FillPortion(1)),
+        //             text("Highest Bid").width(FillPortion(1)),
+        //             text("Claim").width(FillPortion(2)),
+        //         ],
+        //         Column::with_children(bid_spaces.map(|(slabel, total_burned, claim_height)| {
+        //             row![
+        //                 text(slabel.to_string()).width(FillPortion(1)),
+        //                 text(total_burned.to_string_with_denomination(Denomination::Satoshi))
+        //                     .width(FillPortion(1)),
+        //                 text(
+        //                     claim_height
+        //                         .map(|h| height_to_est(h, tip_height))
+        //                         .unwrap_or("pre-auction".to_string())
+        //                 )
+        //                 .width(FillPortion(1)),
+        //                 container(button("View").on_press(Message::SpaceClicked {
+        //                     slabel: *slabel.clone()
+        //                 }))
+        //                 .width(FillPortion(1))
+        //                 .align_x(Right),
+        //             ]
+        //             .align_y(Center)
+        //             .into()
+        //         })),
+        //     ]
+        // ])
+        // .spacing(10)
     ]
     .spacing(5)
     .height(Fill)

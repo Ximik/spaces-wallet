@@ -63,6 +63,10 @@ impl State {
         self.error = Some(error)
     }
 
+    pub fn set_slabel(&mut self, slabel: String) {
+        self.slabel = slabel
+    }
+
     pub fn get_slabel(&self) -> Option<SLabel> {
         slabel_from_str(&self.slabel)
     }

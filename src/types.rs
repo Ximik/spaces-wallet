@@ -1,4 +1,5 @@
-pub use protocol::{slabel::SLabel, Covenant};
+pub use protocol::{slabel::SLabel, Covenant, FullSpaceOut};
+pub use spaced::wallets::{AddressKind, Balance, TxInfo, WalletOutput};
 pub use wallet::bitcoin::{Amount, Denomination, FeeRate};
 
 pub fn is_slabel_input(s: &str) -> bool {
@@ -41,5 +42,46 @@ pub fn fee_rate_from_str(s: &str) -> Option<Option<FeeRate>> {
         Some(None)
     } else {
         s.parse().ok().map(|n| FeeRate::from_sat_per_vb(n))
+    }
+}
+
+pub type SpacesState = rustc_hash::FxHashMap<SLabel, Option<Covenant>>;
+
+use iced::widget::qr_code::Data as QrCode;
+#[derive(Debug)]
+pub struct AddressState {
+    text: String,
+    qr_code: QrCode,
+}
+impl AddressState {
+    pub fn new(text: String) -> Self {
+        let qr_code = QrCode::new(&text).unwrap();
+        Self { text, qr_code }
+    }
+
+    pub fn as_str(&self) -> &str {
+        &self.text
+    }
+
+    pub fn as_qr_code(&self) -> &QrCode {
+        &self.qr_code
+    }
+}
+
+#[derive(Debug, Default)]
+pub struct WalletState {
+    pub name: String,
+    pub balance: Amount,
+    pub coin_address: Option<AddressState>,
+    pub space_address: Option<AddressState>,
+    pub spaces: Vec<SLabel>,
+    pub transactions: Vec<TxInfo>,
+}
+impl WalletState {
+    pub fn new(name: String) -> Self {
+        Self {
+            name,
+            ..Default::default()
+        }
     }
 }
