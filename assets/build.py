@@ -20,20 +20,30 @@ def build_icons_font(icons_path, font_path, rs_path, font_name):
     font.familyname = font_name
     font.fullname = font_name
     font.em = 1000
-    rs = open(rs_path, "w")
-    rs.write(f"pub const FONT: iced::Font = iced::Font::with_name(\"{font_name}\");\n")
+    icons = []
     for i, svg in enumerate(os.listdir(icons_path)):
         if not svg.endswith('.svg'):
             continue
-        name = svg[:-4].upper().replace('-', '_')
+        name = ''.join(x.title() for x in svg[:-4].split('-'))
         char = 0xE000 + i
         glyph = font.createChar(char)
         glyph.importOutlines(os.path.join(icons_path, svg))
         glyph.width = 1000
-        rs.write(f"pub const {name}: char = '\\u{{{char:04X}}}';\n")
+        icons.append((name, char))
+    with open(rs_path, "w") as f:
+        f.write(f"pub const FONT: iced::Font = iced::Font::with_name(\"{font_name}\");\n")
+        f.write("pub enum Icon {\n")
+        f.write(''.join(f"    {name},\n" for (name, char) in icons))
+        f.write("}\n")
+        f.write("impl Icon {\n")
+        f.write("    pub fn as_char(&self) -> char {\n")
+        f.write("        match self {\n")
+        f.write(''.join(f"            Icon::{name} => '\\u{{{char:04X}}}',\n" for (name, char) in icons))
+        f.write("        }\n")
+        f.write("    }\n")
+        f.write("}\n")
     font.generate(font_path)
     font.close()
-    rs.close()
 
 if __name__ == "__main__":
     assets_dir = os.path.dirname(os.path.abspath(__file__))

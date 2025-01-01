@@ -1,8 +1,8 @@
 use iced::widget::{button, center, column, container, qr_code, row, text, toggler};
 use iced::{Border, Center, Element, Fill, Font, Padding, Theme};
 
-use crate::icon;
-use crate::store::Address;
+use crate::types::*;
+use crate::widget::icon::{button_icon, Icon};
 
 #[derive(Debug, Clone, Default)]
 pub struct State {
@@ -21,85 +21,87 @@ pub enum Task {
     WriteClipboard(String),
 }
 
-pub fn update(state: &mut State, message: Message) -> Task {
-    match message {
-        Message::AddressKindToggle(coin_address) => {
-            state.coin_address = coin_address;
-            Task::None
+impl State {
+    pub fn update(&mut self, message: Message) -> Task {
+        match message {
+            Message::AddressKindToggle(coin_address) => {
+                self.coin_address = coin_address;
+                Task::None
+            }
+            Message::CopyPress(s) => Task::WriteClipboard(s),
         }
-        Message::CopyPress(s) => Task::WriteClipboard(s),
     }
-}
 
-pub fn view<'a>(
-    state: &'a State,
-    coin_address: Option<&'a Address>,
-    space_address: Option<&'a Address>,
-) -> Element<'a, Message> {
-    let address_block: Element<'a, Message> = match if state.coin_address {
-        coin_address
-    } else {
-        space_address
-    } {
-        Some(address) => column![
-            container(
-                row![
-                    text(&address.text).font(Font::MONOSPACE),
-                    button(text(icon::COPY).font(icon::FONT))
-                        .style(button::secondary)
-                        .on_press(Message::CopyPress(address.text.clone())),
-                ]
-                .align_y(Center)
-                .spacing(5),
-            )
-            .padding(Padding {
-                top: 5.0,
-                right: 5.0,
-                bottom: 5.0,
-                left: 15.0
-            })
-            .style(|theme: &Theme| {
-                let palette = theme.extended_palette();
-                container::Style::default().border(Border {
-                    color: palette.secondary.base.text,
-                    width: 1.0,
-                    radius: 0.into(),
+    pub fn view<'a>(
+        &self,
+        coin_address: Option<&'a AddressState>,
+        space_address: Option<&'a AddressState>,
+    ) -> Element<'a, Message> {
+        let address_block: Element<'a, Message> = match if self.coin_address {
+            coin_address
+        } else {
+            space_address
+        } {
+            Some(address) => column![
+                container(
+                    row![
+                        text(address.as_str()).font(Font::MONOSPACE),
+                        button_icon(Icon::Copy)
+                            .style(button::secondary)
+                            .on_press(Message::CopyPress(address.as_str().to_string())),
+                    ]
+                    .align_y(Center)
+                    .spacing(5),
+                )
+                .padding(Padding {
+                    top: 5.0,
+                    right: 5.0,
+                    bottom: 5.0,
+                    left: 15.0
                 })
-            }),
-            center(qr_code(&address.qr_code).cell_size(7))
                 .style(|theme: &Theme| {
-                    let palette = theme.palette();
-                    container::Style::default()
-                        .border(Border {
-                            color: palette.text,
-                            width: 2.0,
-                            radius: 0.into(),
-                        })
-                        .background(palette.background)
-                })
-                .width(300)
-                .height(300)
-        ]
-        .width(Fill)
-        .align_x(Center)
-        .spacing(10)
-        .into(),
-        None => center(text("Loading")).into(),
-    };
-
-    center(
-        column![
-            address_block,
-            container(
-                toggler(state.coin_address)
-                    .size(25)
-                    .label("Coins only address")
-                    .on_toggle(Message::AddressKindToggle),
-            )
+                    let palette = theme.extended_palette();
+                    container::Style::default().border(Border {
+                        color: palette.secondary.base.text,
+                        width: 1.0,
+                        radius: 0.into(),
+                    })
+                }),
+                center(qr_code(address.as_qr_code()).cell_size(7))
+                    .style(|theme: &Theme| {
+                        let palette = theme.palette();
+                        container::Style::default()
+                            .border(Border {
+                                color: palette.text,
+                                width: 2.0,
+                                radius: 0.into(),
+                            })
+                            .background(palette.background)
+                    })
+                    .width(300)
+                    .height(300)
+            ]
+            .width(Fill)
             .align_x(Center)
-            .width(Fill),
-        ]
-        .spacing(20),
-    )
-    .into()
+            .spacing(10)
+            .into(),
+            None => center(text("Loading")).into(),
+        };
+
+        center(
+            column![
+                address_block,
+                container(
+                    toggler(self.coin_address)
+                        .size(25)
+                        .label("Coins only address")
+                        .on_toggle(Message::AddressKindToggle),
+                )
+                .align_x(Center)
+                .width(Fill),
+            ]
+            .spacing(20),
+        )
+        .into()
+    }
 }

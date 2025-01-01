@@ -3285,7 +3285,7 @@ checksum = "afbdc74edc00b6f6a218ca6a5364d6226a259d4b8ea1af4a0ea063f27e179f4d"
 [[package]]
 name = "protocol"
 version = "0.0.5"
-source = "git+https://github.com/Ximik/spaces.git?branch=spaces-wallet#df352f2b6d78f9a1cd74ddd485039a9d655d3ea4"
+source = "git+https://github.com/Ximik/spaces.git?branch=slabel#e5057f5b7680a0184f429e03ba7f0300ebb125ce"
 dependencies = [
  "bincode 2.0.0-rc.3",
  "bitcoin",
@@ -4101,7 +4101,7 @@ dependencies = [
 [[package]]
 name = "spaced"
 version = "0.0.5"
-source = "git+https://github.com/Ximik/spaces.git?branch=spaces-wallet#df352f2b6d78f9a1cd74ddd485039a9d655d3ea4"
+source = "git+https://github.com/Ximik/spaces.git?branch=slabel#e5057f5b7680a0184f429e03ba7f0300ebb125ce"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4677,7 +4677,7 @@ dependencies = [
 [[package]]
 name = "wallet"
 version = "0.0.5"
-source = "git+https://github.com/Ximik/spaces.git?branch=spaces-wallet#df352f2b6d78f9a1cd74ddd485039a9d655d3ea4"
+source = "git+https://github.com/Ximik/spaces.git?branch=slabel#e5057f5b7680a0184f429e03ba7f0300ebb125ce"
 dependencies = [
  "anyhow",
  "bdk_file_store",

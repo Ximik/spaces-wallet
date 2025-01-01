@@ -1,12 +1,10 @@
 mod app;
+mod helpers;
 mod screen;
-mod store;
+mod types;
+mod widget;
 
 use app::App;
-
-mod icon {
-    include!("../assets/icons.rs");
-}
 
 use clap::Parser;
 use spaced::config::{default_spaces_rpc_port, ExtendedNetwork};
@@ -21,7 +19,7 @@ pub struct Args {
     #[arg(long)]
     spaced_rpc_url: Option<String>,
     /// Specify wallet to use
-    #[arg(long, short, global = true, default_value = "default")]
+    #[arg(long, short, default_value = "default")]
     wallet: String,
 }
 

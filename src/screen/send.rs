@@ -1,119 +1,99 @@
-use iced::widget::{button, center, column, container, text, text_input, Column};
-use iced::Alignment::Center;
-use iced::Length::Shrink;
-use iced::{Element, Fill, Theme};
+use iced::widget::{center, column};
+use iced::Element;
 
-use crate::store::{Amount, Denomination};
+use crate::{
+    types::*,
+    widget::{block::error, form::Form},
+};
 
 #[derive(Debug, Clone, Default)]
 pub struct State {
     recipient: String,
     amount: String,
+    fee_rate: String,
     error: Option<String>,
-}
-
-impl State {
-    pub fn set_error(&mut self, error: String) {
-        self.error = Some(error)
-    }
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
     RecipientInput(String),
     AmountInput(String),
-    SendPress,
+    FeeRateInput(String),
+    SendSubmit,
 }
 
 #[derive(Debug, Clone)]
 pub enum Task {
     None,
-    SendCoins { recipient: String, amount: Amount },
+    SendCoins {
+        recipient: String,
+        amount: Amount,
+        fee_rate: Option<FeeRate>,
+    },
 }
 
-fn validate(recipient: &String, amount: &String) -> Option<(String, Amount)> {
-    if recipient.is_empty() {
-        return None;
+impl State {
+    pub fn set_error(&mut self, message: String) {
+        self.error = Some(message);
     }
-    Amount::from_str_in(amount, Denomination::Satoshi)
-        .ok()
-        .map(|amount| (recipient.clone(), amount))
-}
 
-pub fn update(state: &mut State, message: Message) -> Task {
-    match message {
-        Message::RecipientInput(recipient) => {
-            if recipient
-                .chars()
-                .all(|c| c.is_ascii_digit() || c.is_ascii_lowercase() || c == '@')
-            {
-                state.recipient = recipient;
-            }
-            Task::None
-        }
-        Message::AmountInput(amount) => {
-            if amount.chars().all(|c| c.is_digit(10)) {
-                state.amount = amount
-            }
-            Task::None
-        }
-        Message::SendPress => {
-            state.error = None;
-            if let Some((recipient, amount)) = validate(&state.recipient, &state.amount) {
-                Task::SendCoins { recipient, amount }
-            } else {
+    pub fn update(&mut self, message: Message) -> Task {
+        self.error = None;
+        match message {
+            Message::RecipientInput(recipient) => {
+                if is_recipient_input(&recipient) {
+                    self.recipient = recipient;
+                }
                 Task::None
             }
+            Message::AmountInput(amount) => {
+                if is_amount_input(&amount) {
+                    self.amount = amount
+                }
+                Task::None
+            }
+            Message::FeeRateInput(fee_rate) => {
+                if is_fee_rate_input(&fee_rate) {
+                    self.fee_rate = fee_rate
+                }
+                Task::None
+            }
+            Message::SendSubmit => {
+                self.error = None;
+                Task::SendCoins {
+                    recipient: recipient_from_str(&self.recipient).unwrap(),
+                    amount: amount_from_str(&self.amount).unwrap(),
+                    fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
+                }
+            }
         }
     }
-}
 
-pub fn view<'a>(state: &'a State) -> Element<'a, Message> {
-    center(
-        Column::new()
-            .push_maybe(state.error.as_ref().map(|error| {
-                container(
-                    text(error)
-                        .style(|theme: &Theme| text::Style {
-                            color: Some(theme.extended_palette().danger.base.text),
-                        })
-                        .center()
-                        .width(Fill),
-                )
-                .style(|theme: &Theme| {
-                    container::Style::default()
-                        .background(theme.extended_palette().danger.base.color)
-                })
-                .width(Fill)
-                .padding([10, 30])
-            }))
-            .push(
-                column![
-                    text("Recipient address"),
-                    text_input("", &state.recipient)
-                        .on_input(Message::RecipientInput)
-                        .padding(10),
-                    text("Amount in SAT"),
-                    text_input("", &state.amount)
-                        .on_input(Message::AmountInput)
-                        .padding(10),
-                ]
-                .spacing(5),
+    pub fn view<'a>(&'a self) -> Element<'a, Message> {
+        center(column![
+            error(self.error.as_ref()),
+            Form::new(
+                "Send",
+                (recipient_from_str(&self.recipient).is_some()
+                    && amount_from_str(&self.amount).is_some()
+                    && fee_rate_from_str(&self.fee_rate).is_some())
+                .then_some(Message::SendSubmit),
             )
-            .push(
-                container(
-                    button("Send")
-                        .on_press_maybe(
-                            validate(&state.recipient, &state.amount).map(|_| Message::SendPress),
-                        )
-                        .padding([10, 20])
-                        .width(Shrink),
-                )
-                .align_x(Center)
-                .width(Fill),
+            .add_labeled_input("Amount", "sat", &self.amount, Message::AmountInput)
+            .add_labeled_input(
+                "To",
+                "bitcoin address or @space",
+                &self.recipient,
+                Message::RecipientInput,
             )
-            .spacing(10),
-    )
-    .padding(20)
-    .into()
+            .add_labeled_input(
+                "Fee rate",
+                "sat/vB (auto if empty)",
+                &self.fee_rate,
+                Message::FeeRateInput,
+            ),
+        ])
+        .padding(20)
+        .into()
+    }
 }
