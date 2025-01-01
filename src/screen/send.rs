@@ -1,4 +1,4 @@
-use iced::widget::{center, Column};
+use iced::widget::{center, column};
 use iced::Element;
 
 use crate::{
@@ -70,32 +70,29 @@ impl State {
     }
 
     pub fn view<'a>(&'a self) -> Element<'a, Message> {
-        center(
-            Column::new()
-                .push_maybe(self.error.as_ref().map(error))
-                .push(
-                    Form::new(
-                        "Send",
-                        (recipient_from_str(&self.recipient).is_some()
-                            && amount_from_str(&self.amount).is_some()
-                            && fee_rate_from_str(&self.fee_rate).is_some())
-                        .then_some(Message::SendSubmit),
-                    )
-                    .add_labeled_input("Amount", "sat", &self.amount, Message::AmountInput)
-                    .add_labeled_input(
-                        "To",
-                        "bitcoin address or @space",
-                        &self.recipient,
-                        Message::RecipientInput,
-                    )
-                    .add_labeled_input(
-                        "Fee rate",
-                        "sat/vB (auto if empty)",
-                        &self.fee_rate,
-                        Message::FeeRateInput,
-                    ),
-                ),
-        )
+        center(column![
+            error(self.error.as_ref()),
+            Form::new(
+                "Send",
+                (recipient_from_str(&self.recipient).is_some()
+                    && amount_from_str(&self.amount).is_some()
+                    && fee_rate_from_str(&self.fee_rate).is_some())
+                .then_some(Message::SendSubmit),
+            )
+            .add_labeled_input("Amount", "sat", &self.amount, Message::AmountInput)
+            .add_labeled_input(
+                "To",
+                "bitcoin address or @space",
+                &self.recipient,
+                Message::RecipientInput,
+            )
+            .add_labeled_input(
+                "Fee rate",
+                "sat/vB (auto if empty)",
+                &self.fee_rate,
+                Message::FeeRateInput,
+            ),
+        ])
         .padding(20)
         .into()
     }

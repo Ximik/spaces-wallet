@@ -34,7 +34,7 @@ pub fn amount_from_str(s: &str) -> Option<Amount> {
 }
 
 pub fn is_fee_rate_input(s: &str) -> bool {
-    s.chars().all(|c| c.is_ascii_digit() || c == '.')
+    s.chars().all(|c| c.is_ascii_digit())
 }
 
 pub fn fee_rate_from_str(s: &str) -> Option<Option<FeeRate>> {

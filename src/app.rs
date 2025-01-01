@@ -9,7 +9,7 @@ use jsonrpsee::core::ClientError;
 use jsonrpsee::http_client::{HttpClient, HttpClientBuilder};
 use spaced::rpc::{
     BidParams, OpenParams, RegisterParams, RpcClient, RpcWalletRequest, RpcWalletTxBuilder,
-    SendCoinsParams, ServerInfo,
+    SendCoinsParams, ServerInfo, TransferSpacesParams,
 };
 
 use crate::screen;
@@ -85,6 +85,11 @@ enum RpcRequest {
         slabel: SLabel,
         fee_rate: Option<FeeRate>,
     },
+    TransferSpace {
+        slabel: SLabel,
+        recipient: String,
+        fee_rate: Option<FeeRate>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -127,6 +132,9 @@ enum RpcResponse {
         result: RpcResult<()>,
     },
     RegisterSpace {
+        result: RpcResult<()>,
+    },
+    TransferSpace {
         result: RpcResult<()>,
     },
 }
@@ -208,9 +216,12 @@ impl App {
                 receive_screen: Default::default(),
                 spaces_screen: Default::default(),
             },
-            Task::done(Message::RpcRequest(RpcRequest::LoadWallet {
-                wallet_name: args.wallet.into(),
-            })),
+            Task::batch([
+                Task::done(Message::RpcRequest(RpcRequest::LoadWallet {
+                    wallet_name: args.wallet.into(),
+                })),
+                Task::done(Message::RpcRequest(RpcRequest::GetServerInfo)),
+            ]),
         )
     }
 
@@ -482,6 +493,44 @@ impl App {
                             Task::none()
                         }
                     }
+                    RpcRequest::TransferSpace {
+                        slabel,
+                        recipient,
+                        fee_rate,
+                    } => {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
+                            Task::perform(
+                                async move {
+                                    let result = client
+                                        .wallet_send_request(
+                                            &wallet_name,
+                                            RpcWalletTxBuilder {
+                                                bidouts: None,
+                                                requests: vec![RpcWalletRequest::Transfer(
+                                                    TransferSpacesParams {
+                                                        spaces: vec![slabel.to_string()],
+                                                        to: recipient,
+                                                    },
+                                                )],
+                                                fee_rate,
+                                                dust: None,
+                                                force: false,
+                                                confirmed_only: false,
+                                                skip_tx_check: false,
+                                            },
+                                        )
+                                        .await
+                                        .map(|_| ())
+                                        .map_err(RpcError::from);
+                                    RpcResponse::TransferSpace { result }
+                                },
+                                Message::RpcResponse,
+                            )
+                        } else {
+                            Task::none()
+                        }
+                    }
                 }
             }
             Message::RpcResponse(response) => {
@@ -627,38 +676,14 @@ impl App {
                             Task::none()
                         }
                     },
-                    RpcResponse::OpenSpace { result } => match result {
-                        Ok(_) => Task::done(Message::NavigateTo(Route::Home)),
-                        Err(RpcError::Call { code, message }) => {
-                            if code == -1 {
-                                self.spaces_screen.set_error(message);
-                            } else {
-                                self.rpc_error = Some(message);
-                            }
-                            Task::none()
+                    RpcResponse::OpenSpace { result }
+                    | RpcResponse::BidSpace { result }
+                    | RpcResponse::RegisterSpace { result }
+                    | RpcResponse::TransferSpace { result } => match result {
+                        Ok(_) => {
+                            self.spaces_screen.clear_inputs();
+                            Task::done(Message::NavigateTo(Route::Home))
                         }
-                        Err(e) => {
-                            self.rpc_error = Some(e.to_string());
-                            Task::none()
-                        }
-                    },
-                    RpcResponse::BidSpace { result } => match result {
-                        Ok(_) => Task::done(Message::NavigateTo(Route::Home)),
-                        Err(RpcError::Call { code, message }) => {
-                            if code == -1 {
-                                self.spaces_screen.set_error(message);
-                            } else {
-                                self.rpc_error = Some(message);
-                            }
-                            Task::none()
-                        }
-                        Err(e) => {
-                            self.rpc_error = Some(e.to_string());
-                            Task::none()
-                        }
-                    },
-                    RpcResponse::RegisterSpace { result } => match result {
-                        Ok(_) => Task::done(Message::NavigateTo(Route::Home)),
                         Err(RpcError::Call { code, message }) => {
                             if code == -1 {
                                 self.spaces_screen.set_error(message);
@@ -700,7 +725,7 @@ impl App {
                 }
                 Route::Spaces => {
                     if self.screen == Screen::Spaces {
-                        self.spaces_screen.set_no_space();
+                        self.spaces_screen.clear_space();
                     } else {
                         self.screen = Screen::Spaces;
                     }
@@ -766,6 +791,15 @@ impl App {
                         fee_rate,
                     }))
                 }
+                screen::spaces::Task::TransferSpace {
+                    slabel,
+                    recipient,
+                    fee_rate,
+                } => Task::done(Message::RpcRequest(RpcRequest::TransferSpace {
+                    slabel,
+                    recipient,
+                    fee_rate,
+                })),
                 screen::spaces::Task::None => Task::none(),
             },
         }
@@ -822,20 +856,39 @@ impl App {
         } else {
             center(text("Loading").align_x(Center)).into()
         };
-        Column::new()
-            .push_maybe(self.rpc_error.as_ref().map(error))
-            .push(main)
-            .into()
+        column![error(self.rpc_error.as_ref()), main].into()
     }
 
     fn subscription(&self) -> Subscription<Message> {
         if self.wallet.is_some() && self.rpc_error.is_none() {
+            let mut subscriptions = vec![time::every(time::Duration::from_secs(30))
+                .map(|_| Message::RpcRequest(RpcRequest::GetServerInfo))];
             match self.screen {
-                Screen::Home => time::every(time::Duration::from_secs(5))
-                    .map(|_| Message::RpcRequest(RpcRequest::GetTransactions)),
-                _ => time::every(time::Duration::from_secs(5))
-                    .map(|_| Message::RpcRequest(RpcRequest::GetServerInfo)),
+                Screen::Home => {
+                    subscriptions.push(
+                        time::every(time::Duration::from_secs(30))
+                            .map(|_| Message::RpcRequest(RpcRequest::GetBalance)),
+                    );
+                    subscriptions.push(
+                        time::every(time::Duration::from_secs(30))
+                            .map(|_| Message::RpcRequest(RpcRequest::GetTransactions)),
+                    );
+                }
+                Screen::Spaces => {
+                    // FIXME: the closure spaces_wallet::app::App::subscription::{{closure}} provided in `Subscription::map` is capturing
+                    // if let Some(slabel) = self.spaces_screen.get_slabel() {
+                    //     subscriptions.push(time::every(time::Duration::from_secs(30)).map(
+                    //         move |_| {
+                    //             Message::RpcRequest(RpcRequest::GetSpaceInfo {
+                    //                 slabel: slabel.clone(),
+                    //             })
+                    //         },
+                    //     ));
+                    // }
+                }
+                _ => {}
             }
+            Subscription::batch(subscriptions)
         } else {
             Subscription::none()
         }

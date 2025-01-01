@@ -4,7 +4,7 @@ use crate::{
 };
 use iced::{
     widget::{button, center, column, container, horizontal_space, row, scrollable, text, Column},
-    Border, Center, Element, Fill, Font, Theme,
+    Border, Center, Element, Fill, Theme,
 };
 
 #[derive(Debug, Clone)]

@@ -2,6 +2,7 @@ use crate::{
     helpers::height_to_est,
     types::*,
     widget::{
+        block::error,
         form::Form,
         icon::{text_input_icon, Icon},
     },
@@ -19,6 +20,7 @@ use iced::{
 pub struct State {
     space: String,
     amount: String,
+    recipient: String,
     fee_rate: String,
     error: Option<String>,
 }
@@ -28,10 +30,12 @@ pub enum Message {
     SLabelSet(SLabel),
     SpaceInput(String),
     AmountInput(String),
+    RecipientInput(String),
     FeeRateInput(String),
     OpenSubmit,
     BidSubmit,
     ClaimSubmit,
+    TransferSubmit,
 }
 
 #[derive(Debug, Clone)]
@@ -54,6 +58,11 @@ pub enum Task {
         slabel: SLabel,
         fee_rate: Option<FeeRate>,
     },
+    TransferSpace {
+        slabel: SLabel,
+        recipient: String,
+        fee_rate: Option<FeeRate>,
+    },
 }
 
 impl State {
@@ -61,11 +70,19 @@ impl State {
         self.error = Some(error)
     }
 
-    pub fn set_no_space(&mut self) {
-        self.space = String::new()
+    pub fn clear_inputs(&mut self) {
+        self.amount = Default::default();
+        self.recipient = Default::default();
+        self.fee_rate = Default::default();
+    }
+
+    pub fn clear_space(&mut self) {
+        self.clear_inputs();
+        self.space = Default::default();
     }
 
     pub fn set_slabel(&mut self, slabel: &SLabel) {
+        self.clear_inputs();
         self.space = slabel.as_str_unprefixed().unwrap().to_string()
     }
 
@@ -98,6 +115,12 @@ impl State {
                 }
                 Task::None
             }
+            Message::RecipientInput(recipient) => {
+                if is_recipient_input(&recipient) {
+                    self.recipient = recipient
+                }
+                Task::None
+            }
             Message::FeeRateInput(fee_rate) => {
                 if is_fee_rate_input(&fee_rate) {
                     self.fee_rate = fee_rate
@@ -116,6 +139,11 @@ impl State {
             },
             Message::ClaimSubmit => Task::ClaimSpace {
                 slabel: self.get_slabel().unwrap(),
+                fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
+            },
+            Message::TransferSubmit => Task::TransferSpace {
+                slabel: self.get_slabel().unwrap(),
+                recipient: recipient_from_str(&self.recipient).unwrap(),
                 fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
             },
         }
@@ -138,14 +166,36 @@ impl State {
         .into()
     }
 
-    fn bid_form<'a>(&'a self) -> Element<'a, Message> {
+    fn bid_form<'a>(&'a self, current_bid: Amount, is_highest: bool) -> Element<'a, Message> {
+        column![
+            text(format!("Current bid: {} satoshi", current_bid.to_sat())),
+            text(format!(
+                "Highest bid is {}",
+                if is_highest { "yours" } else { "not yours" }
+            )),
+            Form::new(
+                "Bid",
+                (amount_from_str(&self.amount).map_or(false, |amount| amount > current_bid)
+                    && fee_rate_from_str(&self.fee_rate).is_some())
+                .then_some(Message::BidSubmit),
+            )
+            .add_labeled_input("Amount", "sat", &self.amount, Message::AmountInput)
+            .add_labeled_input(
+                "Fee rate",
+                "sat/vB (auto if empty)",
+                &self.fee_rate,
+                Message::FeeRateInput,
+            )
+        ]
+        .spacing(5)
+        .into()
+    }
+
+    fn claim_form<'a>(&'a self) -> Element<'a, Message> {
         Form::new(
-            "Bid",
-            (amount_from_str(&self.amount).is_some()
-                && fee_rate_from_str(&self.fee_rate).is_some())
-            .then_some(Message::BidSubmit),
+            "Claim",
+            fee_rate_from_str(&self.fee_rate).map(|_| Message::ClaimSubmit),
         )
-        .add_labeled_input("Amount", "sat", &self.amount, Message::AmountInput)
         .add_labeled_input(
             "Fee rate",
             "sat/vB (auto if empty)",
@@ -155,10 +205,18 @@ impl State {
         .into()
     }
 
-    fn claim_form<'a>(&'a self) -> Element<'a, Message> {
+    fn transfer_form<'a>(&'a self) -> Element<'a, Message> {
         Form::new(
-            "Claim",
-            fee_rate_from_str(&self.fee_rate).map(|_| Message::ClaimSubmit),
+            "Send",
+            (recipient_from_str(&self.recipient).is_some()
+                && fee_rate_from_str(&self.fee_rate).is_some())
+            .then_some(Message::TransferSubmit),
+        )
+        .add_labeled_input(
+            "To",
+            "bitcoin address or @space",
+            &self.recipient,
+            Message::RecipientInput,
         )
         .add_labeled_input(
             "Fee rate",
@@ -177,7 +235,13 @@ impl State {
         .into()
     }
 
-    fn bid_view<'a>(&'a self, tip_height: u32, claim_height: Option<u32>) -> Element<'a, Message> {
+    fn bid_view<'a>(
+        &'a self,
+        tip_height: u32,
+        claim_height: Option<u32>,
+        current_bid: Amount,
+        is_owned: bool,
+    ) -> Element<'a, Message> {
         row![
             timeline::view(
                 if claim_height.is_none() { 1 } else { 2 },
@@ -186,7 +250,10 @@ impl State {
                     |height| format!("Auction ends {}", height_to_est(height, tip_height))
                 )
             ),
-            self.bid_form(),
+            column![
+                error(self.error.as_ref()),
+                self.bid_form(current_bid, is_owned),
+            ]
         ]
         .into()
     }
@@ -202,13 +269,14 @@ impl State {
                 }
             ),
             if is_owned {
-                self.claim_form()
+                column![error(self.error.as_ref()), self.claim_form()]
             } else {
                 column![
-                    text(format!("Current bid: {} sat", current_bid.to_sat())),
-                    self.bid_form(),
+                    text(format!("Current bid: {} satoshi", current_bid.to_sat())),
+                    error(self.error.as_ref()),
+                    self.bid_form(current_bid, is_owned),
                 ]
-                .into()
+                .spacing(5)
             }
         ]
         .into()
@@ -229,7 +297,7 @@ impl State {
                 )
             ),
             if is_owned {
-                column![Form::new("Send", None)]
+                column![error(self.error.as_ref()), self.transfer_form()]
             } else {
                 column![Space::new(Fill, Fill)]
             }
@@ -395,7 +463,7 @@ impl State {
                     if claim_height.map_or(false, |height| height <= tip_height) {
                         self.claim_view(*total_burned, is_owned)
                     } else {
-                        self.bid_view(tip_height, *claim_height)
+                        self.bid_view(tip_height, *claim_height, *total_burned, is_owned)
                     }
                 }
                 Some(Some(Covenant::Transfer { expire_height, .. })) => {
