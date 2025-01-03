@@ -4,7 +4,7 @@ pub enum Icon {
     Copy,
     ArrowDownToArc,
     ArrowDownFromArc,
-    ArrowsExchange,
+    Qrcode,
     At,
 }
 impl Icon {
@@ -14,7 +14,7 @@ impl Icon {
             Icon::Copy => '\u{E001}',
             Icon::ArrowDownToArc => '\u{E003}',
             Icon::ArrowDownFromArc => '\u{E004}',
-            Icon::ArrowsExchange => '\u{E005}',
+            Icon::Qrcode => '\u{E005}',
             Icon::At => '\u{E006}',
         }
     }

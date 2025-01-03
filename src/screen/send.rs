@@ -1,4 +1,4 @@
-use iced::widget::{center, column};
+use iced::widget::column;
 use iced::Element;
 
 use crate::{
@@ -70,7 +70,7 @@ impl State {
     }
 
     pub fn view<'a>(&'a self) -> Element<'a, Message> {
-        center(column![
+        column![
             error(self.error.as_ref()),
             Form::new(
                 "Send",
@@ -92,8 +92,7 @@ impl State {
                 &self.fee_rate,
                 Message::FeeRateInput,
             ),
-        ])
-        .padding(20)
+        ]
         .into()
     }
 }

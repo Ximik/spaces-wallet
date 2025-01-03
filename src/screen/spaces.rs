@@ -10,8 +10,8 @@ use crate::{
 use iced::{
     font,
     widget::{
-        button, center, column, container, horizontal_rule, row, scrollable, text, text_input,
-        Column, Space,
+        button, column, container, horizontal_rule, row, scrollable, text, text_input, Column,
+        Space,
     },
     Center, Element, Fill, FillPortion, Right,
 };
@@ -70,19 +70,19 @@ impl State {
         self.error = Some(error)
     }
 
-    pub fn clear_inputs(&mut self) {
+    pub fn reset_inputs(&mut self) {
         self.amount = Default::default();
         self.recipient = Default::default();
         self.fee_rate = Default::default();
     }
 
-    pub fn clear_space(&mut self) {
-        self.clear_inputs();
+    pub fn reset_space(&mut self) {
+        self.reset_inputs();
         self.space = Default::default();
     }
 
     pub fn set_slabel(&mut self, slabel: &SLabel) {
-        self.clear_inputs();
+        self.reset_inputs();
         self.space = slabel.as_str_unprefixed().unwrap().to_string()
     }
 
@@ -487,11 +487,10 @@ impl State {
                     .on_input(Message::SpaceInput)
                     .font(font::Font::MONOSPACE)
                     .padding(10)
-            )
-            .padding(20),
-            center(main).padding(20),
+            ),
+            main,
         ]
-        .spacing(10)
+        .spacing(20)
         .into()
     }
 }

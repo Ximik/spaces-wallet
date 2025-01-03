@@ -2,7 +2,7 @@ use std::fmt;
 use std::sync::Arc;
 
 use iced::time;
-use iced::widget::{button, center, column, container, row, text, vertical_rule, Column};
+use iced::widget::{button, center, column, container, row, text, vertical_rule};
 use iced::{clipboard, Center, Element, Fill, Subscription, Task};
 
 use jsonrpsee::core::ClientError;
@@ -681,7 +681,7 @@ impl App {
                     | RpcResponse::RegisterSpace { result }
                     | RpcResponse::TransferSpace { result } => match result {
                         Ok(_) => {
-                            self.spaces_screen.clear_inputs();
+                            self.spaces_screen.reset_inputs();
                             Task::done(Message::NavigateTo(Route::Home))
                         }
                         Err(RpcError::Call { code, message }) => {
@@ -713,7 +713,11 @@ impl App {
                     Task::none()
                 }
                 Route::Receive => {
-                    self.screen = Screen::Receive;
+                    if self.screen == Screen::Receive {
+                        self.receive_screen.reset();
+                    } else {
+                        self.screen = Screen::Receive;
+                    }
                     Task::batch([
                         Task::done(Message::RpcRequest(RpcRequest::GetAddress {
                             address_kind: AddressKind::Coin,
@@ -725,7 +729,7 @@ impl App {
                 }
                 Route::Spaces => {
                     if self.screen == Screen::Spaces {
-                        self.spaces_screen.clear_space();
+                        self.spaces_screen.reset_space();
                     } else {
                         self.screen = Screen::Spaces;
                     }
@@ -851,6 +855,7 @@ impl App {
                         .view(self.tip_height, &self.spaces, &wallet.spaces)
                         .map(Message::SpacesScreen),
                 })
+                .padding(20)
             ]
             .into()
         } else {

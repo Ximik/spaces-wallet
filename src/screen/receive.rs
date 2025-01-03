@@ -1,17 +1,24 @@
-use iced::widget::{button, center, column, container, qr_code, row, text, toggler};
-use iced::{Border, Center, Element, Fill, Font, Padding, Theme};
+use iced::{
+    widget::{button, center, column, container, qr_code, row, text},
+    Border, Center, Element, Fill, Font, Theme,
+};
 
-use crate::types::*;
-use crate::widget::icon::{button_icon, Icon};
+use crate::{
+    types::*,
+    widget::icon::{button_icon, Icon},
+};
 
 #[derive(Debug, Clone, Default)]
-pub struct State {
-    coin_address: bool,
+pub enum State {
+    #[default]
+    Home,
+    QrCode(AddressKind),
 }
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    AddressKindToggle(bool),
+    QrCodePress(AddressKind),
+    ClosePress,
     CopyPress(String),
 }
 
@@ -22,10 +29,18 @@ pub enum Task {
 }
 
 impl State {
+    pub fn reset(&mut self) {
+        *self = Self::Home;
+    }
+
     pub fn update(&mut self, message: Message) -> Task {
         match message {
-            Message::AddressKindToggle(coin_address) => {
-                self.coin_address = coin_address;
+            Message::ClosePress => {
+                *self = State::Home;
+                Task::None
+            }
+            Message::QrCodePress(kind) => {
+                *self = Self::QrCode(kind);
                 Task::None
             }
             Message::CopyPress(s) => Task::WriteClipboard(s),
@@ -37,71 +52,64 @@ impl State {
         coin_address: Option<&'a AddressState>,
         space_address: Option<&'a AddressState>,
     ) -> Element<'a, Message> {
-        let address_block: Element<'a, Message> = match if self.coin_address {
-            coin_address
-        } else {
-            space_address
-        } {
-            Some(address) => column![
-                container(
-                    row![
-                        text(address.as_str()).font(Font::MONOSPACE),
-                        button_icon(Icon::Copy)
-                            .style(button::secondary)
-                            .on_press(Message::CopyPress(address.as_str().to_string())),
+        match (self, coin_address, space_address) {
+            (Self::Home, Some(coin_address), Some(space_address)) => {
+                let address_block = |title: &'a str, address: &'a str, kind: AddressKind| {
+                    column![
+                        text(title),
+                        container(
+                            row![
+                                text(address).font(Font::MONOSPACE).width(Fill),
+                                button_icon(Icon::Copy)
+                                    .style(button::secondary)
+                                    .on_press(Message::CopyPress(address.to_string())),
+                                button_icon(Icon::Qrcode)
+                                    .style(button::secondary)
+                                    .on_press(Message::QrCodePress(kind)),
+                            ]
+                            .align_y(Center)
+                            .spacing(5)
+                        )
+                        .padding(10)
+                        .style(|theme: &Theme| {
+                            let palette = theme.extended_palette();
+                            container::Style::default()
+                                .background(palette.background.base.color)
+                                .border(Border {
+                                    radius: 2.0.into(),
+                                    width: 1.0,
+                                    color: palette.background.strong.color,
+                                })
+                        })
                     ]
-                    .align_y(Center)
-                    .spacing(5),
-                )
-                .padding(Padding {
-                    top: 5.0,
-                    right: 5.0,
-                    bottom: 5.0,
-                    left: 15.0
-                })
-                .style(|theme: &Theme| {
-                    let palette = theme.extended_palette();
-                    container::Style::default().border(Border {
-                        color: palette.secondary.base.text,
-                        width: 1.0,
-                        radius: 0.into(),
-                    })
-                }),
-                center(qr_code(address.as_qr_code()).cell_size(7))
-                    .style(|theme: &Theme| {
-                        let palette = theme.palette();
-                        container::Style::default()
-                            .border(Border {
-                                color: palette.text,
-                                width: 2.0,
-                                radius: 0.into(),
-                            })
-                            .background(palette.background)
-                    })
-                    .width(300)
-                    .height(300)
-            ]
-            .width(Fill)
-            .align_x(Center)
-            .spacing(10)
+                };
+                column![
+                    address_block(
+                        "Coins only address",
+                        coin_address.as_str(),
+                        AddressKind::Coin
+                    ),
+                    address_block("Spaces address", space_address.as_str(), AddressKind::Space),
+                ]
+            }
             .into(),
-            None => center(text("Loading")).into(),
-        };
-
-        center(
-            column![
-                address_block,
-                container(
-                    toggler(self.coin_address)
-                        .size(25)
-                        .label("Coins only address")
-                        .on_toggle(Message::AddressKindToggle),
-                )
-                .align_x(Center)
-                .width(Fill),
-            ]
-            .spacing(20),
-        )
-        .into()
+            (Self::QrCode(AddressKind::Coin), Some(address), _)
+            | (Self::QrCode(AddressKind::Space), _, Some(address)) => center(
+                column![
+                    qr_code(address.as_qr_code()).cell_size(7),
+                    text(address.as_str())
+                        .font(Font::MONOSPACE)
+                        .align_x(Center)
+                        .width(Fill),
+                    button("Close")
+                        .style(button::secondary)
+                        .on_press(Message::ClosePress)
+                ]
+                .spacing(10)
+                .align_x(Center),
+            )
+            .into(),
+            _ => center(text("Loading")).into(),
+        }
     }
 }
