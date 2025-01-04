@@ -13,17 +13,12 @@ pub fn button_icon<'a, Message>(icon: Icon) -> Button<'a, Message> {
     Button::new(text_icon(icon))
 }
 
-pub fn text_input_icon(
-    icon: Icon,
-    size: Option<Pixels>,
-    spacing: f32,
-    side: text_input::Side,
-) -> text_input::Icon<Font> {
+pub fn text_input_icon(icon: Icon, size: Option<Pixels>, spacing: f32) -> text_input::Icon<Font> {
     text_input::Icon {
         font: FONT,
         code_point: icon.as_char(),
         size,
         spacing,
-        side,
+        side: text_input::Side::Left,
     }
 }

@@ -1,11 +1,14 @@
 use iced::{
     widget::{button, center, column, container, qr_code, row, text},
-    Border, Center, Element, Fill, Font, Theme,
+    Border, Center, Element, Fill, Theme,
 };
 
 use crate::{
     types::*,
-    widget::icon::{button_icon, Icon},
+    widget::{
+        icon::{button_icon, Icon},
+        text::{text_bold, text_monospace},
+    },
 };
 
 #[derive(Debug, Clone, Default)]
@@ -54,12 +57,16 @@ impl State {
     ) -> Element<'a, Message> {
         match (self, coin_address, space_address) {
             (Self::Home, Some(coin_address), Some(space_address)) => {
-                let address_block = |title: &'a str, address: &'a str, kind: AddressKind| {
+                let address_block = |title: &'static str,
+                                     description: &'static str,
+                                     address: &'a str,
+                                     kind: AddressKind| {
                     column![
-                        text(title),
+                        text_bold(title),
+                        text(description),
                         container(
                             row![
-                                text(address).font(Font::MONOSPACE).width(Fill),
+                                text_monospace(address).width(Fill),
                                 button_icon(Icon::Copy)
                                     .style(button::secondary)
                                     .on_press(Message::CopyPress(address.to_string())),
@@ -81,26 +88,29 @@ impl State {
                                     color: palette.background.strong.color,
                                 })
                         })
-                    ]
+                    ].spacing(5)
                 };
                 column![
                     address_block(
-                        "Coins only address",
+                        "Coins-only address",
+                        "Bitcoin address suitable for receiving spaces and coins (Spaces compatible bitcoin wallets only)",
                         coin_address.as_str(),
-                        AddressKind::Coin
+                        AddressKind::Coin,
                     ),
-                    address_block("Spaces address", space_address.as_str(), AddressKind::Space),
-                ]
+                    address_block(
+                        "Spaces address",
+                        "Bitcoin address suitable for receiving coins compatible with most bitcoin wallets",
+                        space_address.as_str(),
+                        AddressKind::Space,
+                    ),
+                ].spacing(20)
             }
             .into(),
             (Self::QrCode(AddressKind::Coin), Some(address), _)
             | (Self::QrCode(AddressKind::Space), _, Some(address)) => center(
                 column![
                     qr_code(address.as_qr_code()).cell_size(7),
-                    text(address.as_str())
-                        .font(Font::MONOSPACE)
-                        .align_x(Center)
-                        .width(Fill),
+                    text_monospace(address.as_str()).align_x(Center).width(Fill),
                     button("Close")
                         .style(button::secondary)
                         .on_press(Message::ClosePress)

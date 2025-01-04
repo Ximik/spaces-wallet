@@ -15,8 +15,8 @@ use spaced::rpc::{
 use crate::screen;
 use crate::types::*;
 use crate::widget::{
-    block::error,
     icon::{text_icon, Icon},
+    text::error_block,
 };
 
 #[derive(Debug, Clone)]
@@ -861,7 +861,7 @@ impl App {
         } else {
             center(text("Loading").align_x(Center)).into()
         };
-        column![error(self.rpc_error.as_ref()), main].into()
+        column![error_block(self.rpc_error.as_ref()), main].into()
     }
 
     fn subscription(&self) -> Subscription<Message> {

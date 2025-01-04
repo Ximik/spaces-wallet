@@ -1,9 +1,21 @@
 use iced::{
-    widget::{container, text, Space},
+    font,
+    widget::{container, text, Space, Text},
     Element, Fill, Theme,
 };
 
-pub fn error<'a, Message: 'a>(
+pub fn text_bold<'a>(content: impl text::IntoFragment<'a>) -> Text<'a> {
+    text(content).font(font::Font {
+        weight: font::Weight::Bold,
+        ..font::Font::DEFAULT
+    })
+}
+
+pub fn text_monospace<'a>(content: impl text::IntoFragment<'a>) -> Text<'a> {
+    text(content).font(font::Font::MONOSPACE)
+}
+
+pub fn error_block<'a, Message: 'a>(
     message: Option<impl text::IntoFragment<'a>>,
 ) -> Element<'a, Message> {
     match message {

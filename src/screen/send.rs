@@ -3,7 +3,7 @@ use iced::Element;
 
 use crate::{
     types::*,
-    widget::{block::error, form::Form},
+    widget::{form::Form, text::error_block},
 };
 
 #[derive(Debug, Clone, Default)]
@@ -71,7 +71,7 @@ impl State {
 
     pub fn view<'a>(&'a self) -> Element<'a, Message> {
         column![
-            error(self.error.as_ref()),
+            error_block(self.error.as_ref()),
             Form::new(
                 "Send",
                 (recipient_from_str(&self.recipient).is_some()

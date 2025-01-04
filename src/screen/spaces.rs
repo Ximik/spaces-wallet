@@ -2,17 +2,14 @@ use crate::{
     helpers::height_to_est,
     types::*,
     widget::{
-        block::error,
-        form::Form,
+        form::{text_input, Form},
         icon::{text_input_icon, Icon},
+        text::{error_block, text_bold},
     },
 };
 use iced::{
     font,
-    widget::{
-        button, column, container, horizontal_rule, row, scrollable, text, text_input, Column,
-        Space,
-    },
+    widget::{button, column, container, horizontal_rule, row, scrollable, text, Column, Space},
     Center, Element, Fill, FillPortion, Right,
 };
 
@@ -166,27 +163,20 @@ impl State {
         .into()
     }
 
-    fn bid_form<'a>(&'a self, current_bid: Amount, is_highest: bool) -> Element<'a, Message> {
-        column![
-            text(format!("Current bid: {} satoshi", current_bid.to_sat())),
-            text(format!(
-                "Highest bid is {}",
-                if is_highest { "yours" } else { "not yours" }
-            )),
-            Form::new(
-                "Bid",
-                (amount_from_str(&self.amount).map_or(false, |amount| amount > current_bid)
-                    && fee_rate_from_str(&self.fee_rate).is_some())
-                .then_some(Message::BidSubmit),
-            )
-            .add_labeled_input("Amount", "sat", &self.amount, Message::AmountInput)
-            .add_labeled_input(
-                "Fee rate",
-                "sat/vB (auto if empty)",
-                &self.fee_rate,
-                Message::FeeRateInput,
-            )
-        ]
+    fn bid_form<'a>(&'a self, current_bid: Amount) -> Element<'a, Message> {
+        column![Form::new(
+            "Bid",
+            (amount_from_str(&self.amount).map_or(false, |amount| amount > current_bid)
+                && fee_rate_from_str(&self.fee_rate).is_some())
+            .then_some(Message::BidSubmit),
+        )
+        .add_labeled_input("Amount", "sat", &self.amount, Message::AmountInput)
+        .add_labeled_input(
+            "Fee rate",
+            "sat/vB (auto if empty)",
+            &self.fee_rate,
+            Message::FeeRateInput,
+        )]
         .spacing(5)
         .into()
     }
@@ -251,8 +241,13 @@ impl State {
                 )
             ),
             column![
-                error(self.error.as_ref()),
-                self.bid_form(current_bid, is_owned),
+                text(format!("Current bid: {} satoshi", current_bid.to_sat())),
+                text(format!(
+                    "Highest bid is {}",
+                    if is_owned { "yours" } else { "not yours" }
+                )),
+                error_block(self.error.as_ref()),
+                self.bid_form(current_bid),
             ]
         ]
         .into()
@@ -269,12 +264,12 @@ impl State {
                 }
             ),
             if is_owned {
-                column![error(self.error.as_ref()), self.claim_form()]
+                column![error_block(self.error.as_ref()), self.claim_form()]
             } else {
                 column![
                     text(format!("Current bid: {} satoshi", current_bid.to_sat())),
-                    error(self.error.as_ref()),
-                    self.bid_form(current_bid, is_owned),
+                    error_block(self.error.as_ref()),
+                    self.bid_form(current_bid),
                 ]
                 .spacing(5)
             }
@@ -297,7 +292,7 @@ impl State {
                 )
             ),
             if is_owned {
-                column![error(self.error.as_ref()), self.transfer_form()]
+                column![error_block(self.error.as_ref()), self.transfer_form()]
             } else {
                 column![Space::new(Fill, Fill)]
             }
@@ -340,27 +335,12 @@ impl State {
             scrollable(
                 column![
                     column![
-                        text("Registered")
-                            .font(font::Font {
-                                weight: font::Weight::Bold,
-                                ..font::Font::DEFAULT
-                            })
-                            .size(18),
+                        text_bold("Registered").size(18),
                         Space::with_height(5),
                         horizontal_rule(1),
                         row![
-                            text("Space")
-                                .font(font::Font {
-                                    weight: font::Weight::Bold,
-                                    ..font::Font::DEFAULT
-                                })
-                                .width(FillPortion(1)),
-                            text("Expires")
-                                .font(font::Font {
-                                    weight: font::Weight::Bold,
-                                    ..font::Font::DEFAULT
-                                })
-                                .width(FillPortion(2)),
+                            text_bold("Space").width(FillPortion(1)),
+                            text_bold("Expires").width(FillPortion(2)),
                         ]
                         .padding([10, 0]),
                         horizontal_rule(1),
@@ -384,33 +364,13 @@ impl State {
                         .spacing(3),
                     ],
                     column![
-                        text("Bid")
-                            .font(font::Font {
-                                weight: font::Weight::Bold,
-                                ..font::Font::DEFAULT
-                            })
-                            .size(18),
+                        text_bold("Bid").size(18),
                         Space::with_height(5),
                         horizontal_rule(1),
                         row![
-                            text("Space")
-                                .font(font::Font {
-                                    weight: font::Weight::Bold,
-                                    ..font::Font::DEFAULT
-                                })
-                                .width(FillPortion(1)),
-                            text("Highest Bid")
-                                .font(font::Font {
-                                    weight: font::Weight::Bold,
-                                    ..font::Font::DEFAULT
-                                })
-                                .width(FillPortion(1)),
-                            text("Claim")
-                                .font(font::Font {
-                                    weight: font::Weight::Bold,
-                                    ..font::Font::DEFAULT
-                                })
-                                .width(FillPortion(2)),
+                            text_bold("Space").width(FillPortion(1)),
+                            text_bold("Highest Bid").width(FillPortion(1)),
+                            text_bold("Claim").width(FillPortion(2)),
                         ]
                         .padding([10, 0]),
                         horizontal_rule(1),
@@ -453,7 +413,7 @@ impl State {
             let is_owned = wallet_spaces.contains(&slabel);
             let covenant = spaces.get(&slabel);
             match covenant {
-                None => text("loading").into(),
+                None => text("Loading").into(),
                 Some(None) => self.open_view(),
                 Some(Some(Covenant::Bid {
                     claim_height,
@@ -478,12 +438,7 @@ impl State {
         column![
             container(
                 text_input("space", &self.space)
-                    .icon(text_input_icon(
-                        Icon::At,
-                        None,
-                        10.0,
-                        text_input::Side::Left
-                    ))
+                    .icon(text_input_icon(Icon::At, None, 10.0))
                     .on_input(Message::SpaceInput)
                     .font(font::Font::MONOSPACE)
                     .padding(10)

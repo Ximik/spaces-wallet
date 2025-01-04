@@ -1,7 +1,14 @@
 use iced::{
     widget::{Button, Column, Container, Text, TextInput},
-    Center, Element, Fill, Shrink,
+    Center, Element, Fill, Font, Shrink,
 };
+
+pub fn text_input<'a, Message: 'a>(placeholder: &'a str, value: &'a str) -> TextInput<'a, Message>
+where
+    Message: Clone,
+{
+    TextInput::new(placeholder, value).font(Font::MONOSPACE)
+}
 
 pub fn labeled_input<'a, Message: 'a>(
     label: &'a str,
@@ -16,7 +23,7 @@ where
     Column::new()
         .push(Text::new(label).size(14))
         .push(
-            TextInput::new(placeholder, value)
+            text_input(placeholder, value)
                 .on_input(on_input)
                 .on_submit_maybe(on_submit)
                 .padding(10),
