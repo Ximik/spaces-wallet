@@ -93,13 +93,13 @@ impl State {
                 column![
                     address_block(
                         "Coins-only address",
-                        "Bitcoin address suitable for receiving spaces and coins (Spaces compatible bitcoin wallets only)",
+                        "Bitcoin address suitable for receiving coins compatible with most bitcoin wallets",
                         coin_address.as_str(),
                         AddressKind::Coin,
                     ),
                     address_block(
                         "Spaces address",
-                        "Bitcoin address suitable for receiving coins compatible with most bitcoin wallets",
+                        "Bitcoin address suitable for receiving spaces and coins (Spaces compatible bitcoin wallets only)",
                         space_address.as_str(),
                         AddressKind::Space,
                     ),
@@ -109,7 +109,7 @@ impl State {
             (Self::QrCode(AddressKind::Coin), Some(address), _)
             | (Self::QrCode(AddressKind::Space), _, Some(address)) => center(
                 column![
-                    qr_code(address.as_qr_code()).cell_size(7),
+                    qr_code(address.as_qr_code()).cell_size(8),
                     text_monospace(address.as_str()).align_x(Center).width(Fill),
                     button("Close")
                         .style(button::secondary)

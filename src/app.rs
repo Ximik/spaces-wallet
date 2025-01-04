@@ -880,16 +880,19 @@ impl App {
                     );
                 }
                 Screen::Spaces => {
-                    // FIXME: the closure spaces_wallet::app::App::subscription::{{closure}} provided in `Subscription::map` is capturing
-                    // if let Some(slabel) = self.spaces_screen.get_slabel() {
-                    //     subscriptions.push(time::every(time::Duration::from_secs(30)).map(
-                    //         move |_| {
-                    //             Message::RpcRequest(RpcRequest::GetSpaceInfo {
-                    //                 slabel: slabel.clone(),
-                    //             })
-                    //         },
-                    //     ));
-                    // }
+                    subscriptions.push(
+                        time::every(time::Duration::from_secs(30))
+                            .map(|_| Message::RpcRequest(RpcRequest::GetWalletSpaces)),
+                    );
+                    if let Some(slabel) = self.spaces_screen.get_slabel() {
+                        subscriptions.push(
+                            time::every(time::Duration::from_secs(30)).with(slabel).map(
+                                |(slabel, _)| {
+                                    Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel })
+                                },
+                            ),
+                        );
+                    }
                 }
                 _ => {}
             }
