@@ -11,6 +11,7 @@ use spaced::rpc::{
     BidParams, OpenParams, RegisterParams, RpcClient, RpcWalletRequest, RpcWalletTxBuilder,
     SendCoinsParams, ServerInfo, TransferSpacesParams,
 };
+use wallet::bitcoin::transaction;
 
 use crate::screen;
 use crate::types::*;
@@ -62,7 +63,10 @@ enum RpcRequest {
     },
     GetBalance,
     GetWalletSpaces,
-    GetTransactions,
+    GetTransactions {
+        count: usize,
+        skip: usize,
+    },
     GetAddress {
         address_kind: AddressKind,
     },
@@ -110,6 +114,8 @@ enum RpcResponse {
         result: RpcResult<Balance>,
     },
     GetTransactions {
+        count: usize,
+        skip: usize,
         wallet_name: String,
         result: RpcResult<Vec<TxInfo>>,
     },
@@ -305,17 +311,19 @@ impl App {
                             Task::none()
                         }
                     }
-                    RpcRequest::GetTransactions => {
+                    RpcRequest::GetTransactions { count, skip } => {
                         if let Some(wallet) = self.wallet.as_ref() {
                             let wallet_name = wallet.name.clone();
                             Task::perform(
                                 async move {
                                     let result = client
-                                        .wallet_list_transactions(&wallet_name, 100, 0)
+                                        .wallet_list_transactions(&wallet_name, count, skip)
                                         .await
                                         .map_err(RpcError::from);
                                     RpcResponse::GetTransactions {
                                         wallet_name,
+                                        count,
+                                        skip,
                                         result,
                                     }
                                 },
@@ -622,21 +630,57 @@ impl App {
                     }
                     RpcResponse::GetTransactions {
                         wallet_name,
+                        count,
+                        skip,
                         result,
                     } => {
                         match result {
                             Ok(transactions) => {
                                 if let Some(wallet) = self.wallet.as_mut() {
                                     if wallet.name == wallet_name {
-                                        wallet.transactions = transactions;
+                                        if transactions.len() == 0 {
+                                            return Task::none();
+                                        }
+                                        if wallet.transactions.is_empty() {
+                                            wallet.transactions = transactions;
+                                            return Task::none();
+                                        }
+                                        if skip == 0 {
+                                            if transactions.len() < count {
+                                                wallet.transactions = transactions;
+                                                return Task::none();
+                                            }
+                                            let first_confirmed_txid = wallet
+                                                .transactions
+                                                .iter()
+                                                .find(|tx| tx.confirmed)
+                                                .map(|tx| tx.txid);
+                                            if let Some(idx) = transactions.iter().position(|tx| {
+                                                Some(tx.txid) == first_confirmed_txid
+                                            }) {
+                                                wallet.transactions.splice(
+                                                    0..0,
+                                                    transactions[0..idx].iter().cloned(),
+                                                );
+                                                return Task::none();
+                                            }
+                                            return Task::done(Message::RpcRequest(
+                                                RpcRequest::GetTransactions {
+                                                    count: count * 2,
+                                                    skip: 0,
+                                                },
+                                            ));
+                                        }
+                                        // TODO
                                     }
                                 }
+                                Task::none()
                             }
                             Err(e) => {
                                 self.rpc_error = Some(e.to_string());
+                                Task::none()
                             }
                         }
-                        Task::none()
                     }
                     RpcResponse::GetAddress {
                         wallet_name,
@@ -705,7 +749,10 @@ impl App {
                     Task::batch([
                         Task::done(Message::RpcRequest(RpcRequest::GetBalance)),
                         Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces)),
-                        Task::done(Message::RpcRequest(RpcRequest::GetTransactions)),
+                        Task::done(Message::RpcRequest(RpcRequest::GetTransactions {
+                            count: 10,
+                            skip: 0,
+                        })),
                     ])
                 }
                 Route::Send => {
@@ -749,6 +796,16 @@ impl App {
                 screen::home::Message::TxidCopyPress { txid } => clipboard::write(txid),
                 screen::home::Message::SpaceClicked { slabel } => {
                     Task::done(Message::NavigateTo(Route::Space(slabel)))
+                }
+                screen::home::Message::TransactionsScrolled { percentage } => {
+                    println!("{}", percentage);
+                    if let Some(wallet) = self.wallet.as_ref() {
+                        if percentage > 0.8 {
+                            let wallet_name = wallet.name.clone();
+                        }
+                    }
+                    println!("{}", percentage);
+                    Task::none()
                 }
             },
             Message::SendScreen(message) => match self.send_screen.update(message) {
@@ -874,10 +931,9 @@ impl App {
                         time::every(time::Duration::from_secs(30))
                             .map(|_| Message::RpcRequest(RpcRequest::GetBalance)),
                     );
-                    subscriptions.push(
-                        time::every(time::Duration::from_secs(30))
-                            .map(|_| Message::RpcRequest(RpcRequest::GetTransactions)),
-                    );
+                    subscriptions.push(time::every(time::Duration::from_secs(30)).map(|_| {
+                        Message::RpcRequest(RpcRequest::GetTransactions { count: 10, skip: 0 })
+                    }));
                 }
                 Screen::Spaces => {
                     subscriptions.push(

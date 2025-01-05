@@ -11,6 +11,7 @@ use iced::{
 pub enum Message {
     TxidCopyPress { txid: String },
     SpaceClicked { slabel: SLabel },
+    TransactionsScrolled { percentage: f32 },
 }
 
 pub fn view<'a>(balance: Amount, transactions: &'a Vec<TxInfo>) -> Element<'a, Message> {
@@ -66,8 +67,11 @@ pub fn view<'a>(balance: Amount, transactions: &'a Vec<TxInfo>) -> Element<'a, M
             }))
             .spacing(5),
         ))
-        .spacing(2)
+        .spacing(5)
         .height(Fill)
+        .on_scroll(|viewport| Message::TransactionsScrolled {
+            percentage: viewport.relative_offset().y,
+        })
         .into()
     };
 
