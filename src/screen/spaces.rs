@@ -9,7 +9,9 @@ use crate::{
 };
 use iced::{
     font,
-    widget::{button, column, container, horizontal_rule, row, scrollable, text, Column, Space},
+    widget::{
+        button, center, column, container, horizontal_rule, row, scrollable, text, Column, Space,
+    },
     Center, Element, Fill, FillPortion, Right,
 };
 
@@ -432,7 +434,7 @@ impl State {
                 Some(Some(Covenant::Reserved)) => unreachable!("reserved"),
             }
         } else {
-            text("Invalid space name").into()
+            center(text("Invalid space name")).into()
         };
 
         column![

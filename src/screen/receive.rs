@@ -62,8 +62,8 @@ impl State {
                                      address: &'a str,
                                      kind: AddressKind| {
                     column![
-                        text_bold(title),
-                        text(description),
+                        text_bold(title).size(18),
+                        text(description).size(14),
                         container(
                             row![
                                 text_monospace(address).width(Fill),
@@ -103,7 +103,7 @@ impl State {
                         space_address.as_str(),
                         AddressKind::Space,
                     ),
-                ].spacing(20)
+                ].spacing(30)
             }
             .into(),
             (Self::QrCode(AddressKind::Coin), Some(address), _)
@@ -113,9 +113,10 @@ impl State {
                     text_monospace(address.as_str()).align_x(Center).width(Fill),
                     button("Close")
                         .style(button::secondary)
+                        .padding([10, 20])
                         .on_press(Message::ClosePress)
                 ]
-                .spacing(10)
+                .spacing(20)
                 .align_x(Center),
             )
             .into(),
