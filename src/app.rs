@@ -60,6 +60,9 @@ enum RpcRequest {
     LoadWallet {
         wallet_name: String,
     },
+    CreateWallet {
+        wallet_name: String,
+    },
     GetBalance,
     GetWalletSpaces,
     GetTransactions,
@@ -102,6 +105,10 @@ enum RpcResponse {
         result: RpcResult<Option<FullSpaceOut>>,
     },
     LoadWallet {
+        wallet_name: String,
+        result: RpcResult<()>,
+    },
+    CreateWallet {
         wallet_name: String,
         result: RpcResult<()>,
     },
@@ -216,12 +223,15 @@ impl App {
                 receive_screen: Default::default(),
                 spaces_screen: Default::default(),
             },
-            Task::batch([
-                Task::done(Message::RpcRequest(RpcRequest::LoadWallet {
-                    wallet_name: args.wallet.into(),
-                })),
-                Task::done(Message::RpcRequest(RpcRequest::GetServerInfo)),
-            ]),
+            Task::done(Message::RpcRequest(RpcRequest::LoadWallet {
+                wallet_name: args.wallet.into(),
+            })),
+            // Task::batch([
+            //     Task::done(Message::RpcRequest(RpcRequest::LoadWallet {
+            //         wallet_name: args.wallet.into(),
+            //     })),
+            //     Task::done(Message::RpcRequest(RpcRequest::GetServerInfo)),
+            // ]),
         )
     }
 
@@ -259,6 +269,19 @@ impl App {
                                 .await
                                 .map_err(RpcError::from);
                             RpcResponse::LoadWallet {
+                                wallet_name,
+                                result,
+                            }
+                        },
+                        Message::RpcResponse,
+                    ),
+                    RpcRequest::CreateWallet { wallet_name } => Task::perform(
+                        async move {
+                            let result = client
+                                .wallet_create(&wallet_name)
+                                .await
+                                .map_err(RpcError::from);
+                            RpcResponse::CreateWallet {
                                 wallet_name,
                                 result,
                             }
@@ -567,7 +590,33 @@ impl App {
                     } => match result {
                         Ok(_) => {
                             self.wallet = Some(WalletState::new(wallet_name));
-                            Task::done(Message::NavigateTo(Route::Home))
+                            Task::batch([
+                                Task::done(Message::NavigateTo(Route::Home)),
+                                Task::done(Message::RpcRequest(RpcRequest::GetServerInfo)),
+                            ])
+                        }
+                        Err(e) => {
+                            if let RpcError::Call { code, message: _ } = e {
+                                if code == -18 {
+                                    return Task::done(Message::RpcRequest(
+                                        RpcRequest::CreateWallet { wallet_name },
+                                    ));
+                                }
+                            }
+                            self.rpc_error = Some(e.to_string());
+                            Task::none()
+                        }
+                    },
+                    RpcResponse::CreateWallet {
+                        wallet_name,
+                        result,
+                    } => match result {
+                        Ok(_) => {
+                            self.wallet = Some(WalletState::new(wallet_name));
+                            Task::batch([
+                                Task::done(Message::NavigateTo(Route::Home)),
+                                Task::done(Message::RpcRequest(RpcRequest::GetServerInfo)),
+                            ])
                         }
                         Err(e) => {
                             self.rpc_error = Some(e.to_string());
