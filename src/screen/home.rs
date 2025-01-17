@@ -1,6 +1,9 @@
 use crate::{
     types::*,
-    widget::icon::{button_icon, text_icon, Icon},
+    widget::{
+        icon::{button_icon, text_icon, Icon},
+        text::text_header,
+    },
 };
 use iced::{
     widget::{button, center, column, container, horizontal_space, row, scrollable, text, Column},
@@ -72,12 +75,12 @@ pub fn view<'a>(balance: Amount, transactions: &'a Vec<TxInfo>) -> Element<'a, M
     };
 
     column![
-        text("Balance (SAT)"),
-        text(balance.to_sat()),
-        text("Transactions"),
+        text_header("Balance"),
+        text(format!("{} satoshi", balance.to_sat())),
+        text_header("Transactions"),
         transactions
     ]
-    .spacing(5)
+    .spacing(10)
     .height(Fill)
     .width(Fill)
     .into()

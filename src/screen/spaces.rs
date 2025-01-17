@@ -4,7 +4,7 @@ use crate::{
     widget::{
         form::{text_input, Form},
         icon::{text_input_icon, Icon},
-        text::{error_block, text_bold},
+        text::{error_block, text_bold, text_header},
     },
 };
 use iced::{
@@ -222,7 +222,12 @@ impl State {
     fn open_view<'a>(&'a self) -> Element<'a, Message> {
         row![
             timeline::view(0, "Make an open to propose the space for auction"),
-            self.open_form(),
+            column![
+                text_header("Open space"),
+                error_block(self.error.as_ref()),
+                self.open_form(),
+            ]
+            .spacing(10),
         ]
         .into()
     }
@@ -243,14 +248,21 @@ impl State {
                 )
             ),
             column![
-                text(format!("Current bid: {} satoshi", current_bid.to_sat())),
-                text(format!(
-                    "Highest bid is {}",
-                    if is_owned { "yours" } else { "not yours" }
-                )),
+                text_header("Bid space"),
                 error_block(self.error.as_ref()),
+                row![
+                    text("Current bid").size(14),
+                    text_bold(format!("{} satoshi", current_bid.to_sat())).size(14),
+                ]
+                .spacing(5),
+                row![
+                    text("Winning bidder").size(14),
+                    text_bold(if is_owned { "you" } else { "not you" }).size(14),
+                ]
+                .spacing(5),
                 self.bid_form(current_bid),
             ]
+            .spacing(10),
         ]
         .into()
     }
@@ -266,14 +278,24 @@ impl State {
                 }
             ),
             if is_owned {
-                column![error_block(self.error.as_ref()), self.claim_form()]
+                column![
+                    text_header("Claim space"),
+                    error_block(self.error.as_ref()),
+                    self.claim_form(),
+                ]
+                .spacing(10)
             } else {
                 column![
-                    text(format!("Current bid: {} satoshi", current_bid.to_sat())),
+                    text_header("Bid space"),
                     error_block(self.error.as_ref()),
+                    row![
+                        text("Current bid").size(14),
+                        text_bold(format!("{} satoshi", current_bid.to_sat())).size(14),
+                    ]
+                    .spacing(5),
                     self.bid_form(current_bid),
                 ]
-                .spacing(5)
+                .spacing(10)
             }
         ]
         .into()
@@ -294,7 +316,12 @@ impl State {
                 )
             ),
             if is_owned {
-                column![error_block(self.error.as_ref()), self.transfer_form()]
+                column![
+                    text_header("Send space"),
+                    error_block(self.error.as_ref()),
+                    self.transfer_form(),
+                ]
+                .spacing(10)
             } else {
                 column![Space::new(Fill, Fill)]
             }

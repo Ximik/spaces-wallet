@@ -15,6 +15,10 @@ pub fn text_monospace<'a>(content: impl text::IntoFragment<'a>) -> Text<'a> {
     text(content).font(font::Font::MONOSPACE)
 }
 
+pub fn text_header<'a>(content: impl text::IntoFragment<'a>) -> Text<'a> {
+    text_bold(content).size(18)
+}
+
 pub fn error_block<'a, Message: 'a>(
     message: Option<impl text::IntoFragment<'a>>,
 ) -> Element<'a, Message> {

@@ -3,7 +3,10 @@ use iced::Element;
 
 use crate::{
     types::*,
-    widget::{form::Form, text::error_block},
+    widget::{
+        form::Form,
+        text::{error_block, text_header},
+    },
 };
 
 #[derive(Debug, Clone, Default)]
@@ -71,6 +74,7 @@ impl State {
 
     pub fn view<'a>(&'a self) -> Element<'a, Message> {
         column![
+            text_header("Send coins"),
             error_block(self.error.as_ref()),
             Form::new(
                 "Send",
@@ -93,6 +97,7 @@ impl State {
                 Message::FeeRateInput,
             ),
         ]
+        .spacing(10)
         .into()
     }
 }
