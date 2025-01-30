@@ -1,6 +1,9 @@
 pub use protocol::{slabel::SLabel, Covenant, FullSpaceOut};
-pub use spaced::wallets::{AddressKind, Balance, TxInfo, WalletOutput};
-pub use wallet::bitcoin::{Amount, Denomination, FeeRate};
+pub use spaced::wallets::{AddressKind, ListSpacesResponse, TxInfo};
+pub use wallet::{
+    bitcoin::{Amount, Denomination, FeeRate},
+    Balance,
+};
 
 pub fn is_slabel_input(s: &str) -> bool {
     s.chars()
@@ -8,7 +11,9 @@ pub fn is_slabel_input(s: &str) -> bool {
 }
 
 pub fn slabel_from_str(s: &str) -> Option<SLabel> {
-    SLabel::from_str_unprefixed(s).ok()
+    SLabel::from_str_unprefixed(s)
+        .ok()
+        .filter(|slabel| !slabel.is_reserved())
 }
 
 pub fn is_recipient_input(s: &str) -> bool {
@@ -74,7 +79,9 @@ pub struct WalletState {
     pub balance: Amount,
     pub coin_address: Option<AddressState>,
     pub space_address: Option<AddressState>,
-    pub spaces: Vec<SLabel>,
+    pub winning_spaces: Vec<SLabel>,
+    pub outbid_spaces: Vec<SLabel>,
+    pub owned_spaces: Vec<SLabel>,
     pub transactions: Vec<TxInfo>,
 }
 impl WalletState {

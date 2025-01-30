@@ -122,7 +122,7 @@ enum RpcResponse {
     },
     GetWalletSpaces {
         wallet_name: String,
-        result: RpcResult<Vec<WalletOutput>>,
+        result: RpcResult<ListSpacesResponse>,
     },
     GetAddress {
         wallet_name: String,
@@ -533,7 +533,7 @@ impl App {
                                                 requests: vec![RpcWalletRequest::Transfer(
                                                     TransferSpacesParams {
                                                         spaces: vec![slabel.to_string()],
-                                                        to: recipient,
+                                                        to: Some(recipient),
                                                     },
                                                 )],
                                                 fee_rate,
@@ -649,17 +649,23 @@ impl App {
                             Ok(spaces) => {
                                 if let Some(wallet) = self.wallet.as_mut() {
                                     if wallet.name == wallet_name {
-                                        wallet.spaces = spaces
-                                            .into_iter()
-                                            .map(|out| {
-                                                let space = out.space.unwrap();
-                                                self.spaces.insert(
-                                                    space.name.clone(),
-                                                    Some(space.covenant),
-                                                );
-                                                space.name
-                                            })
-                                            .collect();
+                                        let mut collect =
+                                            |spaces: Vec<FullSpaceOut>| -> Vec<SLabel> {
+                                                spaces
+                                                    .into_iter()
+                                                    .map(|out| {
+                                                        let space = out.spaceout.space.unwrap();
+                                                        self.spaces.insert(
+                                                            space.name.clone(),
+                                                            Some(space.covenant),
+                                                        );
+                                                        space.name
+                                                    })
+                                                    .collect()
+                                            };
+                                        wallet.winning_spaces = collect(spaces.winning);
+                                        wallet.outbid_spaces = collect(spaces.outbid);
+                                        wallet.owned_spaces = collect(spaces.owned);
                                     }
                                 }
                             }
@@ -901,7 +907,13 @@ impl App {
                         .map(Message::ReceiveScreen),
                     Screen::Spaces => self
                         .spaces_screen
-                        .view(self.tip_height, &self.spaces, &wallet.spaces)
+                        .view(
+                            self.tip_height,
+                            &self.spaces,
+                            &wallet.winning_spaces,
+                            &wallet.outbid_spaces,
+                            &wallet.owned_spaces
+                        )
                         .map(Message::SpacesScreen),
                 })
                 .padding(20)

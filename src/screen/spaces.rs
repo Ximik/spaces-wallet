@@ -237,7 +237,7 @@ impl State {
         tip_height: u32,
         claim_height: Option<u32>,
         current_bid: Amount,
-        is_owned: bool,
+        is_winning: bool,
     ) -> Element<'a, Message> {
         row![
             timeline::view(
@@ -257,7 +257,7 @@ impl State {
                 .spacing(5),
                 row![
                     text("Winning bidder").size(14),
-                    text_bold(if is_owned { "you" } else { "not you" }).size(14),
+                    text_bold(if is_winning { "you" } else { "not you" }).size(14),
                 ]
                 .spacing(5),
                 self.bid_form(current_bid),
@@ -267,17 +267,17 @@ impl State {
         .into()
     }
 
-    fn claim_view<'a>(&'a self, current_bid: Amount, is_owned: bool) -> Element<'a, Message> {
+    fn claim_view<'a>(&'a self, current_bid: Amount, is_winning: bool) -> Element<'a, Message> {
         row![
             timeline::view(
                 3,
-                if is_owned {
+                if is_winning {
                     "You can claim the space"
                 } else {
                     "The auction is ended, but you still can outbid"
                 }
             ),
-            if is_owned {
+            if is_winning {
                 column![
                     text_header("Claim space"),
                     error_block(self.error.as_ref()),
@@ -333,38 +333,39 @@ impl State {
         &'a self,
         tip_height: u32,
         spaces: &'a SpacesState,
-        wallet_spaces: &'a Vec<SLabel>,
+        winning_spaces: &'a Vec<SLabel>,
+        outbid_spaces: &'a Vec<SLabel>,
+        owned_spaces: &'a Vec<SLabel>,
     ) -> Element<'a, Message> {
         let main: Element<'a, Message> = if self.space.is_empty() {
-            let mut spaces = wallet_spaces
+            let mut owned_spaces = owned_spaces
                 .into_iter()
-                .map(|slabel| (slabel, spaces.get(slabel)))
+                .map(|slabel| match spaces.get(slabel) {
+                    Some(Some(Covenant::Transfer { expire_height, .. })) => (slabel, expire_height),
+                    _ => unreachable!(),
+                })
                 .collect::<Vec<_>>();
-            spaces.sort_unstable_by_key(|s| s.0.as_str_unprefixed().unwrap());
+            owned_spaces.sort_unstable_by_key(|s| s.0.as_str_unprefixed().unwrap());
 
-            let transfer_spaces = spaces
-                .iter()
-                .filter_map(|(slabel, covenant)| match covenant {
-                    Some(Some(Covenant::Transfer { expire_height, .. })) => {
-                        Some((*slabel, expire_height))
-                    }
-                    _ => None,
-                });
-            let bid_spaces = spaces
-                .iter()
-                .filter_map(|(slabel, covenant)| match covenant {
+            let mut bidding_spaces = winning_spaces
+                .into_iter()
+                .map(|slabel| (slabel, true))
+                .chain(outbid_spaces.into_iter().map(|slabel| (slabel, false)))
+                .map(|(slabel, is_winning)| match spaces.get(slabel) {
                     Some(Some(Covenant::Bid {
                         total_burned,
                         claim_height,
                         ..
-                    })) => Some((*slabel, total_burned, claim_height)),
-                    _ => None,
-                });
+                    })) => (slabel, claim_height, total_burned, is_winning),
+                    _ => unreachable!(),
+                })
+                .collect::<Vec<_>>();
+            bidding_spaces.sort_unstable_by_key(|s| s.0.as_str_unprefixed().unwrap());
 
             scrollable(
                 column![
                     column![
-                        text_bold("Registered").size(18),
+                        text_bold("Owned").size(18),
                         Space::with_height(5),
                         horizontal_rule(1),
                         row![
@@ -374,38 +375,41 @@ impl State {
                         .padding([10, 0]),
                         horizontal_rule(1),
                         Space::with_height(5),
-                        Column::with_children(transfer_spaces.map(|(slabel, expire_height)| {
-                            row![
-                                text(slabel.to_string()).width(FillPortion(1)),
-                                text(height_to_est(*expire_height, tip_height))
-                                    .width(FillPortion(1)),
-                                container(
-                                    button("View")
-                                        .style(button::secondary)
-                                        .on_press(Message::SLabelSet(slabel.clone()))
-                                )
-                                .width(FillPortion(1))
-                                .align_x(Right),
-                            ]
-                            .align_y(Center)
-                            .into()
-                        }))
+                        Column::with_children(owned_spaces.into_iter().map(
+                            |(slabel, expire_height)| {
+                                row![
+                                    text(slabel.to_string()).width(FillPortion(1)),
+                                    text(height_to_est(*expire_height, tip_height))
+                                        .width(FillPortion(1)),
+                                    container(
+                                        button("View")
+                                            .style(button::secondary)
+                                            .on_press(Message::SLabelSet(slabel.clone()))
+                                    )
+                                    .width(FillPortion(1))
+                                    .align_x(Right),
+                                ]
+                                .align_y(Center)
+                                .into()
+                            }
+                        ))
                         .spacing(3),
                     ],
                     column![
-                        text_bold("Bid").size(18),
+                        text_bold("Bidding").size(18),
                         Space::with_height(5),
                         horizontal_rule(1),
                         row![
                             text_bold("Space").width(FillPortion(1)),
                             text_bold("Highest Bid").width(FillPortion(1)),
+                            text_bold("Winning Bidder").width(FillPortion(1)),
                             text_bold("Claim").width(FillPortion(2)),
                         ]
                         .padding([10, 0]),
                         horizontal_rule(1),
                         Space::with_height(5),
-                        Column::with_children(bid_spaces.map(
-                            |(slabel, total_burned, claim_height)| {
+                        Column::with_children(bidding_spaces.into_iter().map(
+                            |(slabel, claim_height, total_burned, is_winning)| {
                                 row![
                                     text(slabel.to_string()).width(FillPortion(1)),
                                     text(
@@ -413,6 +417,8 @@ impl State {
                                             .to_string_with_denomination(Denomination::Satoshi)
                                     )
                                     .width(FillPortion(1)),
+                                    text(if is_winning { "you" } else { "not you" })
+                                        .width(FillPortion(1)),
                                     text(
                                         claim_height
                                             .map(|h| height_to_est(h, tip_height))
@@ -439,26 +445,27 @@ impl State {
             .spacing(10)
             .into()
         } else if let Some(slabel) = self.get_slabel() {
-            let is_owned = wallet_spaces.contains(&slabel);
             let covenant = spaces.get(&slabel);
             match covenant {
-                None => text("Loading").into(),
+                None => center(text("Loading")).into(),
                 Some(None) => self.open_view(),
                 Some(Some(Covenant::Bid {
                     claim_height,
                     total_burned,
                     ..
                 })) => {
+                    let is_winning = winning_spaces.contains(&slabel);
                     if claim_height.map_or(false, |height| height <= tip_height) {
-                        self.claim_view(*total_burned, is_owned)
+                        self.claim_view(*total_burned, is_winning)
                     } else {
-                        self.bid_view(tip_height, *claim_height, *total_burned, is_owned)
+                        self.bid_view(tip_height, *claim_height, *total_burned, is_winning)
                     }
                 }
                 Some(Some(Covenant::Transfer { expire_height, .. })) => {
+                    let is_owned = owned_spaces.contains(&slabel);
                     self.registered_view(tip_height, *expire_height, is_owned)
                 }
-                Some(Some(Covenant::Reserved)) => unreachable!("reserved"),
+                Some(Some(Covenant::Reserved)) => center(text("The space is locked")).into(),
             }
         } else {
             center(text("Invalid space name")).into()
