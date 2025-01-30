@@ -12,3 +12,7 @@ jsonrpsee = { version = "0.22.5", features = ["http-client"] }
 clap = { version = "4.5.6", features = ["derive", "env"] }
 hex = "0.4.3"
 rustc-hash = "1.1"
+verglas = { version = "0.1.2", features = ["index"] }
+
+[build-dependencies]
+verglas = { version = "0.1.2", features = ["forge"] }
