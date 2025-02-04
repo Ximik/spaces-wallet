@@ -331,10 +331,11 @@ impl App {
                     RpcRequest::GetTransactions => {
                         if let Some(wallet) = self.wallet.as_ref() {
                             let wallet_name = wallet.name.clone();
+                            let count = wallet.transactions_limit;
                             Task::perform(
                                 async move {
                                     let result = client
-                                        .wallet_list_transactions(&wallet_name, 100, 0)
+                                        .wallet_list_transactions(&wallet_name, count, 0)
                                         .await
                                         .map_err(RpcError::from);
                                     RpcResponse::GetTransactions {
@@ -802,8 +803,17 @@ impl App {
             },
             Message::HomeScreen(message) => match message {
                 screen::home::Message::TxidCopyPress { txid } => clipboard::write(txid),
-                screen::home::Message::SpaceClicked { slabel } => {
+                screen::home::Message::SpaceViewPress { slabel } => {
                     Task::done(Message::NavigateTo(Route::Space(slabel)))
+                }
+                screen::home::Message::TxsListScrolled { percentage } => {
+                    if percentage > 0.8 {
+                        if let Some(wallet) = self.wallet.as_mut() {
+                            wallet.transactions_limit = wallet.transactions.len() * 2;
+                            return Task::done(Message::RpcRequest(RpcRequest::GetTransactions));
+                        }
+                    }
+                    Task::none()
                 }
             },
             Message::SendScreen(message) => match self.send_screen.update(message) {

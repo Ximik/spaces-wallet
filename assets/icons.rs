@@ -3,6 +3,7 @@ pub enum Icon {
     Artboard,
     Copy,
     ArrowDownToArc,
+    Eye,
     ArrowDownFromArc,
     Qrcode,
     At,
@@ -13,9 +14,10 @@ impl Icon {
             Icon::Artboard => '\u{E000}',
             Icon::Copy => '\u{E001}',
             Icon::ArrowDownToArc => '\u{E003}',
-            Icon::ArrowDownFromArc => '\u{E004}',
-            Icon::Qrcode => '\u{E005}',
-            Icon::At => '\u{E006}',
+            Icon::Eye => '\u{E004}',
+            Icon::ArrowDownFromArc => '\u{E005}',
+            Icon::Qrcode => '\u{E006}',
+            Icon::At => '\u{E007}',
         }
     }
 }
