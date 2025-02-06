@@ -1,9 +1,9 @@
 use std::fmt;
 use std::sync::Arc;
 
-use iced::time;
 use iced::widget::{button, center, column, container, row, text, vertical_rule};
 use iced::{clipboard, Center, Element, Fill, Subscription, Task};
+use iced::{time, Theme};
 
 use jsonrpsee::core::ClientError;
 use jsonrpsee::http_client::{HttpClient, HttpClientBuilder};
@@ -194,6 +194,7 @@ impl App {
                 .expect("Failed to load icon");
         let icons_font = include_bytes!("../assets/icons.ttf").as_slice();
         iced::application(Self::title, Self::update, Self::view)
+            .theme(Self::theme)
             .font(icons_font)
             .subscription(Self::subscription)
             .window(iced::window::Settings {
@@ -237,6 +238,12 @@ impl App {
 
     fn title(&self) -> String {
         "Spaces Wallet".into()
+    }
+
+    fn theme(&self) -> Theme {
+        let mut palette = <Theme as std::default::Default>::default().palette();
+        palette.primary = [0.969, 0.576, 0.102].into();
+        Theme::custom("spaces".into(), palette)
     }
 
     fn update(&mut self, message: Message) -> Task<Message> {
