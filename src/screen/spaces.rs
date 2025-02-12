@@ -12,7 +12,7 @@ use iced::{
     widget::{
         button, center, column, container, horizontal_rule, row, scrollable, text, Column, Space,
     },
-    Center, Element, Fill, FillPortion, Right,
+    Center, Element, Fill, FillPortion, Right, Theme,
 };
 
 #[derive(Debug, Clone, Default)]
@@ -317,7 +317,7 @@ impl State {
             ),
             if is_owned {
                 column![
-                    text_header("Send space"),
+                    text_header("Transfer space"),
                     error_block(self.error.as_ref()),
                     self.transfer_form(),
                 ]
@@ -351,65 +351,70 @@ impl State {
                 .into_iter()
                 .map(|slabel| (slabel, true))
                 .chain(outbid_spaces.into_iter().map(|slabel| (slabel, false)))
-                .map(|(slabel, is_winning)| match spaces.get(slabel) {
+                .filter_map(|(slabel, is_winning)| match spaces.get(slabel) {
+                    // TODO: use map after fix https://github.com/spacesprotocol/spaces/issues/72
                     Some(Some(Covenant::Bid {
                         total_burned,
                         claim_height,
                         ..
-                    })) => (slabel, claim_height, total_burned, is_winning),
-                    _ => unreachable!(),
+                    })) => Some((slabel, claim_height, total_burned, is_winning)),
+                    _ => None,
+                    // _ => unreachable!(),
                 })
                 .collect::<Vec<_>>();
             bidding_spaces.sort_unstable_by_key(|s| s.0.as_str_unprefixed().unwrap());
 
-            scrollable(
+            let owned_spaces_list: Element<'a, Message> = if owned_spaces.is_empty() {
+                text("No owned spaces").width(Fill).align_x(Center).into()
+            } else {
                 column![
-                    column![
-                        text_bold("Owned").size(18),
-                        Space::with_height(5),
-                        horizontal_rule(1),
-                        row![
-                            text_bold("Space").width(FillPortion(1)),
-                            text_bold("Expires").width(FillPortion(2)),
-                        ]
-                        .padding([10, 0]),
-                        horizontal_rule(1),
-                        Space::with_height(5),
-                        Column::with_children(owned_spaces.into_iter().map(
-                            |(slabel, expire_height)| {
-                                row![
-                                    text(slabel.to_string()).width(FillPortion(1)),
-                                    text(height_to_est(*expire_height, tip_height))
-                                        .width(FillPortion(1)),
-                                    container(
-                                        button("View")
-                                            .style(button::secondary)
-                                            .on_press(Message::SLabelSet(slabel.clone()))
-                                    )
-                                    .width(FillPortion(1))
-                                    .align_x(Right),
-                                ]
-                                .align_y(Center)
-                                .into()
-                            }
-                        ))
-                        .spacing(3),
-                    ],
-                    column![
-                        text_bold("Bidding").size(18),
-                        Space::with_height(5),
-                        horizontal_rule(1),
-                        row![
-                            text_bold("Space").width(FillPortion(1)),
-                            text_bold("Highest Bid").width(FillPortion(1)),
-                            text_bold("Winning Bidder").width(FillPortion(1)),
-                            text_bold("Claim").width(FillPortion(2)),
-                        ]
-                        .padding([10, 0]),
-                        horizontal_rule(1),
-                        Space::with_height(5),
-                        Column::with_children(bidding_spaces.into_iter().map(
-                            |(slabel, claim_height, total_burned, is_winning)| {
+                    horizontal_rule(1),
+                    row![
+                        text_bold("Space").width(FillPortion(1)),
+                        text_bold("Expires").width(FillPortion(2)),
+                    ]
+                    .padding([10, 10]),
+                    horizontal_rule(1),
+                    Space::with_height(5),
+                    Column::with_children(owned_spaces.into_iter().map(
+                        |(slabel, expire_height)| {
+                            row![
+                                text(slabel.to_string()).width(FillPortion(1)),
+                                text(height_to_est(*expire_height, tip_height))
+                                    .width(FillPortion(1)),
+                                container(
+                                    button("View")
+                                        .style(button::secondary)
+                                        .on_press(Message::SLabelSet(slabel.clone()))
+                                )
+                                .width(FillPortion(1))
+                                .align_x(Right),
+                            ]
+                            .align_y(Center)
+                            .padding([5, 10])
+                            .into()
+                        }
+                    ))
+                ]
+                .into()
+            };
+            let bidding_spaces_list: Element<'a, Message> = if bidding_spaces.is_empty() {
+                text("No bidding spaces").width(Fill).align_x(Center).into()
+            } else {
+                column![
+                    horizontal_rule(1),
+                    row![
+                        text_bold("Space").width(FillPortion(1)),
+                        text_bold("Bid").width(FillPortion(1)),
+                        text_bold("Winning").width(FillPortion(1)),
+                        text_bold("Claim").width(FillPortion(2)),
+                    ]
+                    .padding([10, 10]),
+                    horizontal_rule(1),
+                    Space::with_height(5),
+                    Column::with_children(bidding_spaces.into_iter().map(
+                        |(slabel, claim_height, total_burned, is_winning)| {
+                            container(
                                 row![
                                     text(slabel.to_string()).width(FillPortion(1)),
                                     text(
@@ -417,7 +422,7 @@ impl State {
                                             .to_string_with_denomination(Denomination::Satoshi)
                                     )
                                     .width(FillPortion(1)),
-                                    text(if is_winning { "you" } else { "not you" })
+                                    text(if is_winning { "yes" } else { "no" })
                                         .width(FillPortion(1)),
                                     text(
                                         claim_height
@@ -433,16 +438,40 @@ impl State {
                                     .width(FillPortion(1))
                                     .align_x(Right),
                                 ]
-                                .align_y(Center)
-                                .into()
-                            }
-                        ))
-                        .spacing(3),
-                    ]
+                                .align_y(Center),
+                            )
+                            .style(move |theme: &Theme| {
+                                let palette = theme.extended_palette();
+                                container::Style {
+                                    background: if is_winning {
+                                        if claim_height.map_or(false, |h| h <= tip_height) {
+                                            Some(palette.success.weak.color.into())
+                                        } else {
+                                            None
+                                        }
+                                    } else {
+                                        Some(palette.danger.weak.color.into())
+                                    },
+                                    ..Default::default()
+                                }
+                            })
+                            .padding([5, 10])
+                            .into()
+                        }
+                    ))
+                ]
+                .into()
+            };
+
+            scrollable(
+                column![
+                    column![text_bold("Owned").size(18), owned_spaces_list,].spacing(5),
+                    column![text_bold("Bidding").size(18), bidding_spaces_list,].spacing(5),
                 ]
                 .spacing(30),
             )
             .spacing(10)
+            .height(Fill)
             .into()
         } else if let Some(slabel) = self.get_slabel() {
             let covenant = spaces.get(&slabel);

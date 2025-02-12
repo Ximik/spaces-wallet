@@ -15,7 +15,7 @@ use spaced::rpc::{
 use crate::screen;
 use crate::types::*;
 use crate::widget::{
-    icon::{text_icon, Icon},
+    icon::{text_icon, Icon, FONT_BYTES},
     text::error_block,
 };
 
@@ -187,14 +187,18 @@ pub struct App {
     spaces_screen: screen::spaces::State,
 }
 
+pub const LOGO_BYTES: &[u8] = include_bytes!(concat!(env!("OUT_DIR"), "/logo.rgba"));
+
 impl App {
     pub fn run(args: crate::Args) -> iced::Result {
-        let icon =
-            iced::window::icon::from_rgba(include_bytes!("../assets/spaces.rgba").to_vec(), 64, 64)
-                .expect("Failed to load icon");
-        let icons_font = include_bytes!("../assets/icons.ttf").as_slice();
+        let icon = iced::window::icon::from_rgba(
+            LOGO_BYTES[8..].try_into().unwrap(),
+            u32::from_le_bytes(LOGO_BYTES[0..4].try_into().unwrap()),
+            u32::from_le_bytes(LOGO_BYTES[4..8].try_into().unwrap()),
+        )
+        .expect("Failed to load icon");
         iced::application(Self::title, Self::update, Self::view)
-            .font(icons_font)
+            .font(FONT_BYTES)
             .subscription(Self::subscription)
             .window(iced::window::Settings {
                 size: (1000.0, 500.0).into(),
@@ -331,10 +335,11 @@ impl App {
                     RpcRequest::GetTransactions => {
                         if let Some(wallet) = self.wallet.as_ref() {
                             let wallet_name = wallet.name.clone();
+                            let count = wallet.transactions_limit;
                             Task::perform(
                                 async move {
                                     let result = client
-                                        .wallet_list_transactions(&wallet_name, 100, 0)
+                                        .wallet_list_transactions(&wallet_name, count, 0)
                                         .await
                                         .map_err(RpcError::from);
                                     RpcResponse::GetTransactions {
@@ -802,8 +807,17 @@ impl App {
             },
             Message::HomeScreen(message) => match message {
                 screen::home::Message::TxidCopyPress { txid } => clipboard::write(txid),
-                screen::home::Message::SpaceClicked { slabel } => {
+                screen::home::Message::SpaceViewPress { slabel } => {
                     Task::done(Message::NavigateTo(Route::Space(slabel)))
+                }
+                screen::home::Message::TxsListScrolled { percentage } => {
+                    if percentage > 0.8 {
+                        if let Some(wallet) = self.wallet.as_mut() {
+                            wallet.transactions_limit = wallet.transactions.len() * 2;
+                            return Task::done(Message::RpcRequest(RpcRequest::GetTransactions));
+                        }
+                    }
+                    Task::none()
                 }
             },
             Message::SendScreen(message) => match self.send_screen.update(message) {

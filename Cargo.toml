@@ -2,6 +2,7 @@
 name = "spaces-wallet"
 version = "0.0.1"
 edition = "2021"
+build = "build.rs"
 
 [dependencies]
 iced = { version = "0.13.1", features = ["tokio", "qr_code", "advanced"] }
@@ -12,7 +13,7 @@ jsonrpsee = { version = "0.22.5", features = ["http-client"] }
 clap = { version = "4.5.6", features = ["derive", "env"] }
 hex = "0.4.3"
 rustc-hash = "1.1"
-verglas = { version = "0.1.2", features = ["index"] }
 
 [build-dependencies]
-verglas = { version = "0.1.2", features = ["forge"] }
+verglas = { version = "0.1.2", features = ["forge", "index"] }
+image = { version = "0.25.5", default-features = false, features = ["png"] }
