@@ -283,7 +283,7 @@ impl State {
                                                 .into(),
                                                 None => {
                                                     if event.map_or(false, |event| {
-                                                        event.kind == TxEventKind::Open
+                                                        event.kind == TxEventKind::Commit
                                                     }) {
                                                         text_small("Unconfirmed").into()
                                                     } else {
