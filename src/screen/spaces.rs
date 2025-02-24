@@ -1,10 +1,11 @@
 use crate::{
-    helpers::height_to_est,
+    helpers::{format_amount, height_to_future_est},
     types::*,
     widget::{
         form::{text_input, Form},
         icon::{text_input_icon, Icon},
-        text::{error_block, text_bold, text_header},
+        tabs::TabsRow,
+        text::{error_block, text_big, text_bold, text_monospace, text_monospace_bold, text_small},
     },
 };
 use iced::{
@@ -12,12 +13,21 @@ use iced::{
     widget::{
         button, center, column, container, horizontal_rule, row, scrollable, text, Column, Space,
     },
-    Center, Element, Fill, FillPortion, Right, Theme,
+    Border, Center, Element, Fill, Theme,
 };
+
+#[derive(Debug, Clone, Default, PartialEq, Eq)]
+pub enum Filter {
+    #[default]
+    Owned,
+    Bidding,
+}
 
 #[derive(Debug, Clone, Default)]
 pub struct State {
-    space: String,
+    slabel: Option<SLabel>,
+    search: String,
+    filter: Filter,
     amount: String,
     recipient: String,
     fee_rate: String,
@@ -26,19 +36,20 @@ pub struct State {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    SLabelSet(SLabel),
-    SpaceInput(String),
+    SLabelPress(SLabel),
+    SearchInput(String),
+    FilterPress(Filter),
     AmountInput(String),
     RecipientInput(String),
     FeeRateInput(String),
     OpenSubmit,
     BidSubmit,
-    ClaimSubmit,
+    RegisterSubmit,
     TransferSubmit,
 }
 
 #[derive(Debug, Clone)]
-pub enum Task {
+pub enum Action {
     None,
     GetSpaceInfo {
         slabel: SLabel,
@@ -53,7 +64,7 @@ pub enum Task {
         amount: Amount,
         fee_rate: Option<FeeRate>,
     },
-    ClaimSpace {
+    RegisterSpace {
         slabel: SLabel,
         fee_rate: Option<FeeRate>,
     },
@@ -75,73 +86,82 @@ impl State {
         self.fee_rate = Default::default();
     }
 
-    pub fn reset_space(&mut self) {
+    pub fn reset(&mut self) {
         self.reset_inputs();
-        self.space = Default::default();
+        if self.slabel.is_some() {
+            self.slabel = Default::default();
+        } else {
+            self.search = Default::default();
+        }
     }
 
     pub fn set_slabel(&mut self, slabel: &SLabel) {
         self.reset_inputs();
-        self.space = slabel.as_str_unprefixed().unwrap().to_string()
+        self.slabel = Some(slabel.clone())
     }
 
     pub fn get_slabel(&self) -> Option<SLabel> {
-        slabel_from_str(&self.space)
+        self.slabel.clone()
     }
 
-    pub fn update(&mut self, message: Message) -> Task {
+    pub fn update(&mut self, message: Message) -> Action {
         self.error = None;
         match message {
-            Message::SLabelSet(slabel) => {
-                self.space = slabel.to_string_unprefixed().unwrap();
-                Task::GetSpaceInfo { slabel }
+            Message::SLabelPress(slabel) => {
+                self.search = String::new();
+                self.slabel = Some(slabel.clone());
+                Action::GetSpaceInfo { slabel }
             }
-            Message::SpaceInput(space) => {
-                if is_slabel_input(&space) {
-                    self.space = space;
-                    if let Some(slabel) = self.get_slabel() {
-                        Task::GetSpaceInfo { slabel }
+            Message::SearchInput(search) => {
+                if is_slabel_input(&search) {
+                    self.search = search;
+                    if let Some(slabel) = slabel_from_str(&self.search) {
+                        Action::GetSpaceInfo { slabel }
                     } else {
-                        Task::None
+                        Action::None
                     }
                 } else {
-                    Task::None
+                    Action::None
                 }
+            }
+            Message::FilterPress(filter) => {
+                self.filter = filter;
+                Action::None
             }
             Message::AmountInput(amount) => {
                 if is_amount_input(&amount) {
                     self.amount = amount
                 }
-                Task::None
+                Action::None
             }
             Message::RecipientInput(recipient) => {
                 if is_recipient_input(&recipient) {
                     self.recipient = recipient
                 }
-                Task::None
+                Action::None
             }
             Message::FeeRateInput(fee_rate) => {
                 if is_fee_rate_input(&fee_rate) {
                     self.fee_rate = fee_rate
                 }
-                Task::None
+                Action::None
             }
-            Message::OpenSubmit => Task::OpenSpace {
-                slabel: self.get_slabel().unwrap(),
+            Message::OpenSubmit => Action::OpenSpace {
+                slabel: self.slabel.as_ref().unwrap().clone(),
                 amount: amount_from_str(&self.amount).unwrap(),
                 fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
             },
-            Message::BidSubmit => Task::BidSpace {
-                slabel: self.get_slabel().unwrap(),
+            Message::BidSubmit => Action::BidSpace {
+                slabel: self.slabel.as_ref().unwrap().clone(),
                 amount: amount_from_str(&self.amount).unwrap(),
                 fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
             },
-            Message::ClaimSubmit => Task::ClaimSpace {
-                slabel: self.get_slabel().unwrap(),
+            Message::RegisterSubmit => Action::RegisterSpace {
+                slabel: self.slabel.as_ref().unwrap().clone(),
                 fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
             },
-            Message::TransferSubmit => Task::TransferSpace {
-                slabel: self.get_slabel().unwrap(),
+            Message::TransferSubmit => Action::TransferSpace {
+                slabel: self.slabel.as_ref().unwrap().clone(),
                 recipient: recipient_from_str(&self.recipient).unwrap(),
                 fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
             },
@@ -166,7 +186,7 @@ impl State {
     }
 
     fn bid_form<'a>(&'a self, current_bid: Amount) -> Element<'a, Message> {
-        column![Form::new(
+        Form::new(
             "Bid",
             (amount_from_str(&self.amount).map_or(false, |amount| amount > current_bid)
                 && fee_rate_from_str(&self.fee_rate).is_some())
@@ -178,15 +198,14 @@ impl State {
             "sat/vB (auto if empty)",
             &self.fee_rate,
             Message::FeeRateInput,
-        )]
-        .spacing(5)
+        )
         .into()
     }
 
-    fn claim_form<'a>(&'a self) -> Element<'a, Message> {
+    fn register_form<'a>(&'a self) -> Element<'a, Message> {
         Form::new(
-            "Claim",
-            fee_rate_from_str(&self.fee_rate).map(|_| Message::ClaimSubmit),
+            "Register",
+            fee_rate_from_str(&self.fee_rate).map(|_| Message::RegisterSubmit),
         )
         .add_labeled_input(
             "Fee rate",
@@ -223,7 +242,7 @@ impl State {
         row![
             timeline::view(0, "Make an open to propose the space for auction"),
             column![
-                text_header("Open space"),
+                text_big("Open space"),
                 error_block(self.error.as_ref()),
                 self.open_form(),
             ]
@@ -244,15 +263,15 @@ impl State {
                 if claim_height.is_none() { 1 } else { 2 },
                 claim_height.map_or(
                     "Make a bid to improve the chance of moving the space to auction".to_string(),
-                    |height| format!("Auction ends {}", height_to_est(height, tip_height))
+                    |height| format!("Auction ends {}", height_to_future_est(height, tip_height))
                 )
             ),
             column![
-                text_header("Bid space"),
+                text_big("Bid space"),
                 error_block(self.error.as_ref()),
                 row![
                     text("Current bid").size(14),
-                    text_bold(format!("{} satoshi", current_bid.to_sat())).size(14),
+                    text_bold(format!("{}", format_amount(current_bid))).size(14),
                 ]
                 .spacing(5),
                 row![
@@ -267,30 +286,30 @@ impl State {
         .into()
     }
 
-    fn claim_view<'a>(&'a self, current_bid: Amount, is_winning: bool) -> Element<'a, Message> {
+    fn register_view<'a>(&'a self, current_bid: Amount, is_winning: bool) -> Element<'a, Message> {
         row![
             timeline::view(
                 3,
                 if is_winning {
-                    "You can claim the space"
+                    "You can register the space"
                 } else {
                     "The auction is ended, but you still can outbid"
                 }
             ),
             if is_winning {
                 column![
-                    text_header("Claim space"),
+                    text_big("Claim space"),
                     error_block(self.error.as_ref()),
-                    self.claim_form(),
+                    self.register_form(),
                 ]
                 .spacing(10)
             } else {
                 column![
-                    text_header("Bid space"),
+                    text_big("Bid space"),
                     error_block(self.error.as_ref()),
                     row![
                         text("Current bid").size(14),
-                        text_bold(format!("{} satoshi", current_bid.to_sat())).size(14),
+                        text_bold(format_amount(current_bid)).size(14),
                     ]
                     .spacing(5),
                     self.bid_form(current_bid),
@@ -312,12 +331,12 @@ impl State {
                 4,
                 format!(
                     "The space registration expires {}",
-                    height_to_est(expire_height, tip_height)
+                    height_to_future_est(expire_height, tip_height)
                 )
             ),
             if is_owned {
                 column![
-                    text_header("Transfer space"),
+                    text_big("Transfer space"),
                     error_block(self.error.as_ref()),
                     self.transfer_form(),
                 ]
@@ -337,180 +356,200 @@ impl State {
         outbid_spaces: &'a Vec<SLabel>,
         owned_spaces: &'a Vec<SLabel>,
     ) -> Element<'a, Message> {
-        let main: Element<'a, Message> = if self.space.is_empty() {
-            let mut owned_spaces = owned_spaces
-                .into_iter()
-                .map(|slabel| match spaces.get(slabel) {
-                    Some(Some(Covenant::Transfer { expire_height, .. })) => (slabel, expire_height),
-                    _ => unreachable!(),
-                })
-                .collect::<Vec<_>>();
-            owned_spaces.sort_unstable_by_key(|s| s.0.as_str_unprefixed().unwrap());
-
-            let mut bidding_spaces = winning_spaces
-                .into_iter()
-                .map(|slabel| (slabel, true))
-                .chain(outbid_spaces.into_iter().map(|slabel| (slabel, false)))
-                .filter_map(|(slabel, is_winning)| match spaces.get(slabel) {
-                    // TODO: use map after fix https://github.com/spacesprotocol/spaces/issues/72
-                    Some(Some(Covenant::Bid {
-                        total_burned,
-                        claim_height,
-                        ..
-                    })) => Some((slabel, claim_height, total_burned, is_winning)),
-                    _ => None,
-                    // _ => unreachable!(),
-                })
-                .collect::<Vec<_>>();
-            bidding_spaces.sort_unstable_by_key(|s| s.0.as_str_unprefixed().unwrap());
-
-            let owned_spaces_list: Element<'a, Message> = if owned_spaces.is_empty() {
-                text("No owned spaces").width(Fill).align_x(Center).into()
-            } else {
-                column![
-                    horizontal_rule(1),
-                    row![
-                        text_bold("Space").width(FillPortion(1)),
-                        text_bold("Expires").width(FillPortion(2)),
-                    ]
-                    .padding([10, 10]),
-                    horizontal_rule(1),
-                    Space::with_height(5),
-                    Column::with_children(owned_spaces.into_iter().map(
-                        |(slabel, expire_height)| {
-                            row![
-                                text(slabel.to_string()).width(FillPortion(1)),
-                                text(height_to_est(*expire_height, tip_height))
-                                    .width(FillPortion(1)),
-                                container(
-                                    button("View")
-                                        .style(button::secondary)
-                                        .on_press(Message::SLabelSet(slabel.clone()))
-                                )
-                                .width(FillPortion(1))
-                                .align_x(Right),
-                            ]
-                            .align_y(Center)
-                            .padding([5, 10])
-                            .into()
-                        }
-                    ))
-                ]
-                .into()
-            };
-            let bidding_spaces_list: Element<'a, Message> = if bidding_spaces.is_empty() {
-                text("No bidding spaces").width(Fill).align_x(Center).into()
-            } else {
-                column![
-                    horizontal_rule(1),
-                    row![
-                        text_bold("Space").width(FillPortion(1)),
-                        text_bold("Bid").width(FillPortion(1)),
-                        text_bold("Winning").width(FillPortion(1)),
-                        text_bold("Claim").width(FillPortion(2)),
-                    ]
-                    .padding([10, 10]),
-                    horizontal_rule(1),
-                    Space::with_height(5),
-                    Column::with_children(bidding_spaces.into_iter().map(
-                        |(slabel, claim_height, total_burned, is_winning)| {
-                            container(
-                                row![
-                                    text(slabel.to_string()).width(FillPortion(1)),
-                                    text(
-                                        total_burned
-                                            .to_string_with_denomination(Denomination::Satoshi)
-                                    )
-                                    .width(FillPortion(1)),
-                                    text(if is_winning { "yes" } else { "no" })
-                                        .width(FillPortion(1)),
-                                    text(
-                                        claim_height
-                                            .map(|h| height_to_est(h, tip_height))
-                                            .unwrap_or("pre-auction".to_string())
-                                    )
-                                    .width(FillPortion(1)),
-                                    container(
-                                        button("View")
-                                            .style(button::secondary)
-                                            .on_press(Message::SLabelSet(slabel.clone()))
-                                    )
-                                    .width(FillPortion(1))
-                                    .align_x(Right),
-                                ]
-                                .align_y(Center),
-                            )
-                            .style(move |theme: &Theme| {
-                                let palette = theme.extended_palette();
-                                container::Style {
-                                    background: if is_winning {
-                                        if claim_height.map_or(false, |h| h <= tip_height) {
-                                            Some(palette.success.weak.color.into())
-                                        } else {
-                                            None
-                                        }
-                                    } else {
-                                        Some(palette.danger.weak.color.into())
-                                    },
-                                    ..Default::default()
-                                }
-                            })
-                            .padding([5, 10])
-                            .into()
-                        }
-                    ))
-                ]
-                .into()
-            };
-
-            scrollable(
-                column![
-                    column![text_bold("Owned").size(18), owned_spaces_list,].spacing(5),
-                    column![text_bold("Bidding").size(18), bidding_spaces_list,].spacing(5),
-                ]
-                .spacing(30),
-            )
-            .spacing(10)
-            .height(Fill)
-            .into()
-        } else if let Some(slabel) = self.get_slabel() {
+        if let Some(slabel) = self.slabel.as_ref() {
             let covenant = spaces.get(&slabel);
-            match covenant {
-                None => center(text("Loading")).into(),
-                Some(None) => self.open_view(),
-                Some(Some(Covenant::Bid {
-                    claim_height,
-                    total_burned,
-                    ..
-                })) => {
-                    let is_winning = winning_spaces.contains(&slabel);
-                    if claim_height.map_or(false, |height| height <= tip_height) {
-                        self.claim_view(*total_burned, is_winning)
-                    } else {
-                        self.bid_view(tip_height, *claim_height, *total_burned, is_winning)
+            column![
+                text_monospace_bold(slabel.to_string()).size(30),
+                horizontal_rule(3),
+                match covenant {
+                    None => center(text("Loading")).into(),
+                    Some(None) => self.open_view(),
+                    Some(Some(Covenant::Bid {
+                        claim_height,
+                        total_burned,
+                        ..
+                    })) => {
+                        let is_winning = winning_spaces.contains(&slabel);
+                        if claim_height.map_or(false, |height| height <= tip_height) {
+                            self.register_view(*total_burned, is_winning)
+                        } else {
+                            self.bid_view(tip_height, *claim_height, *total_burned, is_winning)
+                        }
                     }
-                }
-                Some(Some(Covenant::Transfer { expire_height, .. })) => {
-                    let is_owned = owned_spaces.contains(&slabel);
-                    self.registered_view(tip_height, *expire_height, is_owned)
-                }
-                Some(Some(Covenant::Reserved)) => center(text("The space is locked")).into(),
-            }
+                    Some(Some(Covenant::Transfer { expire_height, .. })) => {
+                        let is_owned = owned_spaces.contains(&slabel);
+                        self.registered_view(tip_height, *expire_height, is_owned)
+                    }
+                    Some(Some(Covenant::Reserved)) => center(text("The space is locked")).into(),
+                },
+            ]
+            .spacing(20)
         } else {
-            center(text("Invalid space name")).into()
-        };
+            let mut slabels: Vec<&SLabel> = if self.search.is_empty() {
+                match self.filter {
+                    Filter::Owned => owned_spaces.iter().collect(),
+                    Filter::Bidding => winning_spaces.iter().chain(outbid_spaces).collect(),
+                }
+            } else {
+                owned_spaces
+                    .iter()
+                    .chain(winning_spaces.iter())
+                    .chain(outbid_spaces.iter())
+                    .filter(|s| s.as_str_unprefixed().unwrap().contains(&self.search))
+                    .collect()
+            };
+            slabels.sort_unstable_by_key(|s| s.as_str_unprefixed().unwrap());
 
-        column![
-            container(
-                text_input("space", &self.space)
-                    .icon(text_input_icon(Icon::At, None, 10.0))
-                    .on_input(Message::SpaceInput)
-                    .font(font::Font::MONOSPACE)
-                    .padding(10)
-            ),
-            main,
-        ]
-        .spacing(20)
+            let card = |slabel: &SLabel| -> Element<'a, Message> {
+                enum State {
+                    None,
+                    Success,
+                    Danger,
+                }
+
+                let (data, state): (Element<'a, Message>, State) = match spaces.get(slabel) {
+                    None => (Space::with_width(Fill).into(), State::None),
+                    Some(None) => (text_small("Available").width(Fill).into(), State::None),
+                    Some(Some(Covenant::Bid {
+                        claim_height,
+                        total_burned,
+                        ..
+                    })) => {
+                        let is_claimable =
+                            claim_height.map_or(false, |height| height <= tip_height);
+                        let is_winning = winning_spaces.contains(&slabel);
+                        (
+                            column![
+                                text_small("In auction"),
+                                text_small(format!(
+                                    "Highest bid: {} ({})",
+                                    format_amount(*total_burned),
+                                    if is_winning { "you" } else { "not you" }
+                                )),
+                                if is_claimable {
+                                    text_small("Can be claimed")
+                                } else if let Some(claim_height) = claim_height {
+                                    text_small(format!(
+                                        "Ends {}",
+                                        height_to_future_est(*claim_height, tip_height)
+                                    ))
+                                } else {
+                                    text_small("Pre-auction")
+                                }
+                            ]
+                            .width(Fill)
+                            .into(),
+                            if is_winning {
+                                if is_claimable {
+                                    State::Success
+                                } else {
+                                    State::None
+                                }
+                            } else {
+                                State::Danger
+                            },
+                        )
+                    }
+                    Some(Some(Covenant::Transfer { expire_height, .. })) => {
+                        let is_owned = owned_spaces.contains(&slabel);
+                        (
+                            column![
+                                text_small(if is_owned { "Owned" } else { "Registered" }),
+                                text_small(format!(
+                                    "Expires {}",
+                                    height_to_future_est(*expire_height, tip_height)
+                                )),
+                            ]
+                            .width(Fill)
+                            .into(),
+                            if is_owned && *expire_height <= tip_height {
+                                State::Danger
+                            } else {
+                                State::None
+                            },
+                        )
+                    }
+                    Some(Some(Covenant::Reserved)) => {
+                        (text_small("Reserved").width(Fill).into(), State::None)
+                    }
+                };
+                button(
+                    row![text_monospace_bold(slabel.to_string()).width(Fill), data]
+                        .padding([10, 5])
+                        .spacing(5)
+                        .align_y(Center)
+                        .width(Fill),
+                )
+                .style(move |theme: &Theme, status: button::Status| {
+                    let palette = theme.extended_palette();
+                    button::Style {
+                        border: Border {
+                            width: match &state {
+                                State::None => 1.0,
+                                _ => 2.0,
+                            },
+                            color: match &state {
+                                State::None => palette.background.strong.color.into(),
+                                State::Success => palette.success.base.color.into(),
+                                State::Danger => palette.danger.base.color.into(),
+                            },
+                            ..Default::default()
+                        },
+                        background: if status == button::Status::Hovered {
+                            Some(palette.background.weak.color.into())
+                        } else {
+                            None
+                        },
+                        ..Default::default()
+                    }
+                })
+                .on_press(Message::SLabelPress(slabel.clone()))
+                .into()
+            };
+
+            Column::new()
+                .push(container(
+                    text_input("space", &self.search)
+                        .icon(text_input_icon(Icon::At, None, 10.0))
+                        .on_input(Message::SearchInput)
+                        .font(font::Font::MONOSPACE)
+                        .padding(10),
+                ))
+                .push_maybe(if self.search.is_empty() {
+                    Some(
+                        TabsRow::new()
+                            .add_tab(
+                                "Owned",
+                                self.filter == Filter::Owned,
+                                Message::FilterPress(Filter::Owned),
+                            )
+                            .add_tab(
+                                "Bidding",
+                                self.filter == Filter::Bidding,
+                                Message::FilterPress(Filter::Bidding),
+                            ),
+                    )
+                } else {
+                    None
+                })
+                .push(
+                    scrollable(
+                        Column::new()
+                            .push_maybe(
+                                slabel_from_str(&self.search)
+                                    .filter(|slabel| !slabels.contains(&slabel))
+                                    .map(|slabel| card(&slabel)),
+                            )
+                            .extend(slabels.into_iter().map(card))
+                            .push(Space::with_height(5))
+                            .spacing(5),
+                    )
+                    .spacing(10)
+                    .height(Fill)
+                    .width(Fill),
+                )
+                .spacing(20)
+        }
         .into()
     }
 }

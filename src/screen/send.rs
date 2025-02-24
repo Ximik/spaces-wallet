@@ -5,7 +5,7 @@ use crate::{
     types::*,
     widget::{
         form::Form,
-        text::{error_block, text_header},
+        text::{error_block, text_big},
     },
 };
 
@@ -26,7 +26,7 @@ pub enum Message {
 }
 
 #[derive(Debug, Clone)]
-pub enum Task {
+pub enum Action {
     None,
     SendCoins {
         recipient: String,
@@ -40,30 +40,30 @@ impl State {
         self.error = Some(message);
     }
 
-    pub fn update(&mut self, message: Message) -> Task {
+    pub fn update(&mut self, message: Message) -> Action {
         self.error = None;
         match message {
             Message::RecipientInput(recipient) => {
                 if is_recipient_input(&recipient) {
                     self.recipient = recipient;
                 }
-                Task::None
+                Action::None
             }
             Message::AmountInput(amount) => {
                 if is_amount_input(&amount) {
                     self.amount = amount
                 }
-                Task::None
+                Action::None
             }
             Message::FeeRateInput(fee_rate) => {
                 if is_fee_rate_input(&fee_rate) {
                     self.fee_rate = fee_rate
                 }
-                Task::None
+                Action::None
             }
             Message::SendSubmit => {
                 self.error = None;
-                Task::SendCoins {
+                Action::SendCoins {
                     recipient: recipient_from_str(&self.recipient).unwrap(),
                     amount: amount_from_str(&self.amount).unwrap(),
                     fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
@@ -74,7 +74,7 @@ impl State {
 
     pub fn view<'a>(&'a self) -> Element<'a, Message> {
         column![
-            text_header("Send coins"),
+            text_big("Send coins"),
             error_block(self.error.as_ref()),
             Form::new(
                 "Send",

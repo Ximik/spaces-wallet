@@ -1,8 +1,10 @@
-pub use protocol::{slabel::SLabel, Covenant, FullSpaceOut};
+pub use protocol::{bitcoin::Txid, slabel::SLabel, Covenant, FullSpaceOut};
 pub use spaced::wallets::{AddressKind, ListSpacesResponse, TxInfo};
+pub use std::str::FromStr;
 pub use wallet::{
+    bdk_wallet::serde::Deserialize,
     bitcoin::{Amount, Denomination, FeeRate},
-    tx_event::{BidEventDetails, OpenEventDetails, TxEventKind},
+    tx_event::{BidEventDetails, OpenEventDetails, TxEvent, TxEventKind},
     Balance,
 };
 
@@ -84,13 +86,11 @@ pub struct WalletState {
     pub outbid_spaces: Vec<SLabel>,
     pub owned_spaces: Vec<SLabel>,
     pub transactions: Vec<TxInfo>,
-    pub transactions_limit: usize,
 }
 impl WalletState {
     pub fn new(name: String) -> Self {
         Self {
             name,
-            transactions_limit: 10,
             ..Default::default()
         }
     }

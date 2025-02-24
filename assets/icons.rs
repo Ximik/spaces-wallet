@@ -2,10 +2,9 @@ pub const FONT: iced::Font = iced::Font::with_name("icons");
 pub enum Icon {
     Artboard,
     Copy,
+    ArrowBigUpLines,
     ArrowDownToArc,
-    Eye,
     ArrowDownFromArc,
-    Qrcode,
     At,
 }
 impl Icon {
@@ -13,11 +12,10 @@ impl Icon {
         match self {
             Icon::Artboard => '\u{E000}',
             Icon::Copy => '\u{E001}',
-            Icon::ArrowDownToArc => '\u{E003}',
-            Icon::Eye => '\u{E004}',
+            Icon::ArrowBigUpLines => '\u{E002}',
+            Icon::ArrowDownToArc => '\u{E004}',
             Icon::ArrowDownFromArc => '\u{E005}',
-            Icon::Qrcode => '\u{E006}',
-            Icon::At => '\u{E007}',
+            Icon::At => '\u{E006}',
         }
     }
 }

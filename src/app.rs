@@ -93,6 +93,10 @@ enum RpcRequest {
         recipient: String,
         fee_rate: Option<FeeRate>,
     },
+    BumpFee {
+        txid: Txid,
+        fee_rate: FeeRate,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -144,6 +148,9 @@ enum RpcResponse {
     TransferSpace {
         result: RpcResult<()>,
     },
+    BumpFee {
+        result: RpcResult<()>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -182,6 +189,7 @@ pub struct App {
     tip_height: u32,
     wallet: Option<WalletState>,
     spaces: SpacesState,
+    home_screen: screen::home::State,
     send_screen: screen::send::State,
     receive_screen: screen::receive::State,
     spaces_screen: screen::spaces::State,
@@ -219,6 +227,7 @@ impl App {
                 tip_height: 0,
                 wallet: None,
                 spaces: Default::default(),
+                home_screen: Default::default(),
                 send_screen: Default::default(),
                 receive_screen: Default::default(),
                 spaces_screen: Default::default(),
@@ -331,7 +340,7 @@ impl App {
                     RpcRequest::GetTransactions => {
                         if let Some(wallet) = self.wallet.as_ref() {
                             let wallet_name = wallet.name.clone();
-                            let count = wallet.transactions_limit;
+                            let count = self.home_screen.get_transactions_limit();
                             Task::perform(
                                 async move {
                                     let result = client
@@ -555,6 +564,24 @@ impl App {
                             Task::none()
                         }
                     }
+                    RpcRequest::BumpFee { txid, fee_rate } => {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
+                            Task::perform(
+                                async move {
+                                    let result = client
+                                        .wallet_bump_fee(&wallet_name, txid, fee_rate, false)
+                                        .await
+                                        .map(|_| ())
+                                        .map_err(RpcError::from);
+                                    RpcResponse::BumpFee { result }
+                                },
+                                Message::RpcResponse,
+                            )
+                        } else {
+                            Task::none()
+                        }
+                    }
                 }
             }
             Message::RpcResponse(response) => {
@@ -753,11 +780,30 @@ impl App {
                             Task::none()
                         }
                     },
+                    RpcResponse::BumpFee { result } => match result {
+                        Ok(_) => {
+                            self.home_screen.reset_inputs();
+                            Task::done(Message::NavigateTo(Route::Home))
+                        }
+                        Err(RpcError::Call { code, message }) => {
+                            if code == -1 {
+                                self.home_screen.set_error(message);
+                            } else {
+                                self.rpc_error = Some(message);
+                            }
+                            Task::none()
+                        }
+                        Err(e) => {
+                            self.rpc_error = Some(e.to_string());
+                            Task::none()
+                        }
+                    },
                 }
             }
             Message::NavigateTo(route) => match route {
                 Route::Home => {
                     self.screen = Screen::Home;
+                    self.home_screen.reset();
                     Task::batch([
                         Task::done(Message::RpcRequest(RpcRequest::GetBalance)),
                         Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces)),
@@ -769,11 +815,7 @@ impl App {
                     Task::none()
                 }
                 Route::Receive => {
-                    if self.screen == Screen::Receive {
-                        self.receive_screen.reset();
-                    } else {
-                        self.screen = Screen::Receive;
-                    }
+                    self.screen = Screen::Receive;
                     Task::batch([
                         Task::done(Message::RpcRequest(RpcRequest::GetAddress {
                             address_kind: AddressKind::Coin,
@@ -785,7 +827,7 @@ impl App {
                 }
                 Route::Spaces => {
                     if self.screen == Screen::Spaces {
-                        self.spaces_screen.reset_space();
+                        self.spaces_screen.reset();
                     } else {
                         self.screen = Screen::Spaces;
                     }
@@ -801,23 +843,20 @@ impl App {
                     Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
                 }
             },
-            Message::HomeScreen(message) => match message {
-                screen::home::Message::TxidCopyPress { txid } => clipboard::write(txid),
-                screen::home::Message::SpaceViewPress { slabel } => {
+            Message::HomeScreen(message) => match self.home_screen.update(message) {
+                screen::home::Action::ShowSpace { slabel } => {
                     Task::done(Message::NavigateTo(Route::Space(slabel)))
                 }
-                screen::home::Message::TxsListScrolled { percentage } => {
-                    if percentage > 0.8 {
-                        if let Some(wallet) = self.wallet.as_mut() {
-                            wallet.transactions_limit = wallet.transactions.len() * 2;
-                            return Task::done(Message::RpcRequest(RpcRequest::GetTransactions));
-                        }
-                    }
-                    Task::none()
+                screen::home::Action::GetTransactions => {
+                    Task::done(Message::RpcRequest(RpcRequest::GetTransactions))
                 }
+                screen::home::Action::BumpFee { txid, fee_rate } => {
+                    Task::done(Message::RpcRequest(RpcRequest::BumpFee { txid, fee_rate }))
+                }
+                screen::home::Action::None => Task::none(),
             },
             Message::SendScreen(message) => match self.send_screen.update(message) {
-                screen::send::Task::SendCoins {
+                screen::send::Action::SendCoins {
                     recipient,
                     amount,
                     fee_rate,
@@ -826,17 +865,17 @@ impl App {
                     amount,
                     fee_rate,
                 })),
-                screen::send::Task::None => Task::none(),
+                screen::send::Action::None => Task::none(),
             },
             Message::ReceiveScreen(message) => match self.receive_screen.update(message) {
-                screen::receive::Task::WriteClipboard(s) => clipboard::write(s),
-                screen::receive::Task::None => Task::none(),
+                screen::receive::Action::WriteClipboard(s) => clipboard::write(s),
+                screen::receive::Action::None => Task::none(),
             },
             Message::SpacesScreen(message) => match self.spaces_screen.update(message) {
-                screen::spaces::Task::GetSpaceInfo { slabel } => {
+                screen::spaces::Action::GetSpaceInfo { slabel } => {
                     Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
                 }
-                screen::spaces::Task::OpenSpace {
+                screen::spaces::Action::OpenSpace {
                     slabel,
                     amount,
                     fee_rate,
@@ -845,7 +884,7 @@ impl App {
                     amount,
                     fee_rate,
                 })),
-                screen::spaces::Task::BidSpace {
+                screen::spaces::Action::BidSpace {
                     slabel,
                     amount,
                     fee_rate,
@@ -854,13 +893,13 @@ impl App {
                     amount,
                     fee_rate,
                 })),
-                screen::spaces::Task::ClaimSpace { slabel, fee_rate } => {
+                screen::spaces::Action::RegisterSpace { slabel, fee_rate } => {
                     Task::done(Message::RpcRequest(RpcRequest::RegisterSpace {
                         slabel,
                         fee_rate,
                     }))
                 }
-                screen::spaces::Task::TransferSpace {
+                screen::spaces::Action::TransferSpace {
                     slabel,
                     recipient,
                     fee_rate,
@@ -869,7 +908,7 @@ impl App {
                     recipient,
                     fee_rate,
                 })),
-                screen::spaces::Task::None => Task::none(),
+                screen::spaces::Action::None => Task::none(),
             },
         }
     }
@@ -908,7 +947,9 @@ impl App {
                 .width(200),
                 vertical_rule(3),
                 container(match &self.screen {
-                    Screen::Home => screen::home::view(wallet.balance, &wallet.transactions)
+                    Screen::Home => self
+                        .home_screen
+                        .view(self.tip_height, wallet.balance, &wallet.transactions)
                         .map(Message::HomeScreen),
                     Screen::Send => self.send_screen.view().map(Message::SendScreen),
                     Screen::Receive => self
