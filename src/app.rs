@@ -205,8 +205,7 @@ impl App {
             .font(icons_font)
             .subscription(Self::subscription)
             .window(iced::window::Settings {
-                size: (1000.0, 500.0).into(),
-                min_size: Some((1000.0, 500.0).into()),
+                min_size: Some((1300.0, 500.0).into()),
                 icon: Some(icon),
                 ..Default::default()
             })
@@ -802,8 +801,11 @@ impl App {
             }
             Message::NavigateTo(route) => match route {
                 Route::Home => {
-                    self.screen = Screen::Home;
-                    self.home_screen.reset();
+                    if self.screen == Screen::Home {
+                        self.home_screen.reset();
+                    } else {
+                        self.screen = Screen::Home;
+                    }
                     Task::batch([
                         Task::done(Message::RpcRequest(RpcRequest::GetBalance)),
                         Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces)),

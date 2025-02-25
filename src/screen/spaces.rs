@@ -359,7 +359,7 @@ impl State {
         if let Some(slabel) = self.slabel.as_ref() {
             let covenant = spaces.get(&slabel);
             column![
-                text_monospace_bold(slabel.to_string()).size(30),
+                text_monospace_bold(slabel.to_string()).size(20),
                 horizontal_rule(3),
                 match covenant {
                     None => center(text("Loading")).into(),

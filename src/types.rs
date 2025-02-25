@@ -4,7 +4,7 @@ pub use std::str::FromStr;
 pub use wallet::{
     bdk_wallet::serde::Deserialize,
     bitcoin::{Amount, Denomination, FeeRate},
-    tx_event::{BidEventDetails, OpenEventDetails, TxEvent, TxEventKind},
+    tx_event::{BidEventDetails, BidoutEventDetails, OpenEventDetails, TxEvent, TxEventKind},
     Balance,
 };
 
