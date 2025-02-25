@@ -846,6 +846,7 @@ impl App {
                 }
             },
             Message::HomeScreen(message) => match self.home_screen.update(message) {
+                screen::home::Action::WriteClipboard(s) => clipboard::write(s),
                 screen::home::Action::ShowSpace { slabel } => {
                     Task::done(Message::NavigateTo(Route::Space(slabel)))
                 }
@@ -874,6 +875,7 @@ impl App {
                 screen::receive::Action::None => Task::none(),
             },
             Message::SpacesScreen(message) => match self.spaces_screen.update(message) {
+                screen::spaces::Action::WriteClipboard(s) => clipboard::write(s),
                 screen::spaces::Action::GetSpaceInfo { slabel } => {
                     Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
                 }

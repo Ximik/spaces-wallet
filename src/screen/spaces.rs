@@ -3,9 +3,9 @@ use crate::{
     types::*,
     widget::{
         form::{text_input, Form},
-        icon::{text_input_icon, Icon},
+        icon::{button_icon, text_icon, text_input_icon, Icon},
         tabs::TabsRow,
-        text::{error_block, text_big, text_bold,  text_monospace_bold, text_small},
+        text::{error_block, text_big, text_bold, text_monospace_bold, text_small},
     },
 };
 use iced::{
@@ -36,7 +36,9 @@ pub struct State {
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    BackPress,
     SLabelPress(SLabel),
+    CopySLabelPress(SLabel),
     SearchInput(String),
     FilterPress(Filter),
     AmountInput(String),
@@ -51,6 +53,7 @@ pub enum Message {
 #[derive(Debug, Clone)]
 pub enum Action {
     None,
+    WriteClipboard(String),
     GetSpaceInfo {
         slabel: SLabel,
     },
@@ -107,11 +110,16 @@ impl State {
     pub fn update(&mut self, message: Message) -> Action {
         self.error = None;
         match message {
+            Message::BackPress => {
+                self.slabel = None;
+                Action::None
+            }
             Message::SLabelPress(slabel) => {
                 self.search = String::new();
                 self.slabel = Some(slabel.clone());
                 Action::GetSpaceInfo { slabel }
             }
+            Message::CopySLabelPress(slabel) => Action::WriteClipboard(slabel.to_string()),
             Message::SearchInput(search) => {
                 if is_slabel_input(&search) {
                     self.search = search;
@@ -359,7 +367,17 @@ impl State {
         if let Some(slabel) = self.slabel.as_ref() {
             let covenant = spaces.get(&slabel);
             column![
-                text_monospace_bold(slabel.to_string()).size(20),
+                row![
+                    button(text_icon(Icon::ChevronLeft).size(20))
+                        .style(button::text)
+                        .on_press(Message::BackPress),
+                    text_monospace_bold(slabel.to_string()).size(20),
+                    button_icon(Icon::Copy)
+                        .style(button::text)
+                        .on_press(Message::CopySLabelPress(slabel.clone())),
+                ]
+                .spacing(5)
+                .align_y(Center),
                 horizontal_rule(3),
                 match covenant {
                     None => center(text("Loading")).into(),

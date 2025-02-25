@@ -3,14 +3,14 @@ use crate::{
     types::*,
     widget::{
         form::Form,
-        icon::{text_icon, Icon},
+        icon::{button_icon, text_icon, Icon},
         text::{error_block, text_big, text_monospace, text_monospace_bold, text_small},
     },
 };
 use iced::{
     widget::{
-        button, canvas::Stroke, center, column, container, horizontal_rule, horizontal_space, row,
-        scrollable, text, Column, Row, Space,
+        button, center, column, container, horizontal_rule, horizontal_space, row, scrollable,
+        text, Column, Row, Space,
     },
     Border, Center, Element, Fill, FillPortion, Theme,
 };
@@ -36,9 +36,11 @@ impl Default for State {
 
 #[derive(Debug, Clone)]
 pub enum Message {
-    TxidPress { txid: Txid },
-    SpacePress { slabel: SLabel },
-    TxsListScrolled { percentage: f32, count: usize },
+    BackPress,
+    TxidPress(Txid),
+    CopyTxidPress(Txid),
+    SpacePress(SLabel),
+    TxsListScrolled(f32, usize),
     FeeRateInput(String),
     BumpFeeSubmit,
 }
@@ -46,6 +48,7 @@ pub enum Message {
 #[derive(Debug, Clone)]
 pub enum Action {
     None,
+    WriteClipboard(String),
     ShowSpace { slabel: SLabel },
     GetTransactions,
     BumpFee { txid: Txid, fee_rate: FeeRate },
@@ -72,12 +75,17 @@ impl State {
     pub fn update(&mut self, message: Message) -> Action {
         self.error = None;
         match message {
-            Message::TxidPress { txid } => {
+            Message::BackPress => {
+                self.txid = None;
+                Action::None
+            }
+            Message::TxidPress(txid) => {
                 self.txid = Some(txid);
                 Action::None
             }
-            Message::SpacePress { slabel } => Action::ShowSpace { slabel },
-            Message::TxsListScrolled { percentage, count } => {
+            Message::SpacePress(slabel) => Action::ShowSpace { slabel },
+            Message::CopyTxidPress(txid) => Action::WriteClipboard(txid.to_string()),
+            Message::TxsListScrolled(percentage, count) => {
                 if percentage > 0.8 && count >= self.transactions_limit {
                     self.transactions_limit += (percentage * count as f32) as usize;
                     Action::GetTransactions
@@ -115,7 +123,7 @@ impl State {
                         text(action).width(Fill),
                         container(
                             button(text_monospace(space))
-                                .on_press(Message::SpacePress { slabel })
+                                .on_press(Message::SpacePress(slabel))
                                 .style(button::text)
                                 .padding(0)
                         )
@@ -138,7 +146,17 @@ impl State {
                     };
 
                 column![
-                    text_monospace_bold(txid.to_string()).size(20),
+                    row![
+                        button(text_icon(Icon::ChevronLeft).size(20))
+                            .style(button::text)
+                            .on_press(Message::BackPress),
+                        text_monospace_bold(txid.to_string()).size(20),
+                        button_icon(Icon::Copy)
+                            .style(button::text)
+                            .on_press(Message::CopyTxidPress(txid.clone())),
+                    ]
+                    .spacing(5)
+                    .align_y(Center),
                     horizontal_rule(3),
                     row![
                         column![
@@ -266,7 +284,6 @@ impl State {
                                         )),
                                         TxEvent {
                                             kind: TxEventKind::FeeBump,
-                                            space,
                                             ..
                                         } => Some(event_data_with_string("FeeBump", String::new())),
                                         _ => None,
@@ -376,7 +393,7 @@ impl State {
                                         row![
                                             text(action),
                                             button(text_monospace(space))
-                                                .on_press(Message::SpacePress { slabel })
+                                                .on_press(Message::SpacePress(slabel))
                                                 .style(button::text)
                                                 .padding(0),
                                             horizontal_space()
@@ -409,7 +426,7 @@ impl State {
                                                 )
                                                 .style(button::text)
                                                 .padding(0)
-                                                .on_press(Message::TxidPress { txid })
+                                                .on_press(Message::TxidPress(txid))
                                             )
                                             .width(FillPortion(3)),
                                             match event {
@@ -507,9 +524,11 @@ impl State {
                             .push(Space::with_height(5))
                             .spacing(5),
                         )
-                        .on_scroll(|viewport| Message::TxsListScrolled {
-                            percentage: viewport.relative_offset().y,
-                            count: transactions.len(),
+                        .on_scroll(|viewport| {
+                            Message::TxsListScrolled(
+                                viewport.relative_offset().y,
+                                transactions.len(),
+                            )
                         })
                         .spacing(20)
                         .height(Fill)
