@@ -15,8 +15,19 @@ pub fn text_monospace<'a>(content: impl text::IntoFragment<'a>) -> Text<'a> {
     text(content).font(font::Font::MONOSPACE)
 }
 
-pub fn text_header<'a>(content: impl text::IntoFragment<'a>) -> Text<'a> {
+pub fn text_monospace_bold<'a>(content: impl text::IntoFragment<'a>) -> Text<'a> {
+    text(content).font(font::Font {
+        weight: font::Weight::Bold,
+        ..font::Font::MONOSPACE
+    })
+}
+
+pub fn text_big<'a>(content: impl text::IntoFragment<'a>) -> Text<'a> {
     text_bold(content).size(18)
+}
+
+pub fn text_small<'a>(content: impl text::IntoFragment<'a>) -> Text<'a> {
+    text(content).size(14)
 }
 
 pub fn error_block<'a, Message: 'a>(
