@@ -9,9 +9,10 @@ use crate::{
 };
 use iced::{
     widget::{
-        button, center, column, container, horizontal_space, row, scrollable, text, Column, Space,
+        button, center, column, container, horizontal_space, row, scrollable, text, Column, Row,
+        Space,
     },
-    Border, Center, Element, Fill, Theme,
+    Border, Center, Element, Fill, FillPortion, Theme,
 };
 
 #[derive(Debug, Clone)]
@@ -35,9 +36,9 @@ impl Default for State {
 
 #[derive(Debug, Clone)]
 pub enum Message {
+    TxidPress { txid: Txid },
     SpacePress { slabel: SLabel },
     TxsListScrolled { percentage: f32, count: usize },
-    BumpFeePress { txid: Txid },
     FeeRateInput(String),
     BumpFeeSubmit,
 }
@@ -71,6 +72,10 @@ impl State {
     pub fn update(&mut self, message: Message) -> Action {
         self.error = None;
         match message {
+            Message::TxidPress { txid } => {
+                self.txid = Some(txid);
+                Action::None
+            }
             Message::SpacePress { slabel } => Action::ShowSpace { slabel },
             Message::TxsListScrolled { percentage, count } => {
                 if percentage > 0.8 && count >= self.transactions_limit {
@@ -79,10 +84,6 @@ impl State {
                 } else {
                     Action::None
                 }
-            }
-            Message::BumpFeePress { txid } => {
-                self.txid = Some(txid);
-                Action::None
             }
             Message::FeeRateInput(fee_rate) => {
                 if is_fee_rate_input(&fee_rate) {
@@ -115,7 +116,9 @@ impl State {
                     error_block(self.error.as_ref()),
                     Form::new(
                         "Bump fee",
-                        fee_rate_from_str(&self.fee_rate).flatten().map(|_| Message::BumpFeeSubmit),
+                        fee_rate_from_str(&self.fee_rate)
+                            .flatten()
+                            .map(|_| Message::BumpFeeSubmit),
                     )
                     .add_labeled_input(
                         "Fee rate",
@@ -134,23 +137,20 @@ impl State {
                                 let block_height = transaction.block_height;
                                 let txid = transaction.txid;
                                 let txid_string = txid.to_string();
-                                let event = transaction.events.iter().find(|event| event.space.is_some());
+                                let event = transaction
+                                    .events
+                                    .iter()
+                                    .find(|event| event.space.is_some());
+                                let bumped = transaction
+                                    .events
+                                    .iter()
+                                    .any(|event| event.kind == TxEventKind::FeeBump);
 
-                                let tx_text = || -> Element<'a, Message> {
-                                    text_monospace(format!(
-                                        "{} .. {}",
-                                        &txid_string[..8],
-                                        &txid_string[54..]
-                                    ))
-                                    .into()
-                                };
-
-                                let tx_without_event =
-                                    || -> Element<'a, Message> {
+                                let tx_row_without_event =
+                                    || -> Row<'a, Message> {
                                         let diff = transaction.received.to_sat() as i64
                                             - transaction.sent.to_sat() as i64;
                                         row![
-                                            tx_text(),
                                             horizontal_space(),
                                             if diff >= 0 {
                                                 text_monospace(format!(
@@ -182,18 +182,15 @@ impl State {
                                                 })
                                             }
                                         ]
-                                        .into()
                                     };
 
-                                let tx_with_event =
+                                let tx_row_with_event =
                                     |action: &'static str,
                                      space: &'a str,
                                      amount: Option<Amount>|
-                                     -> Element<'a, Message> {
+                                     -> Row<'a, Message> {
                                         let slabel = SLabel::from_str(space).unwrap();
                                         row![
-                                            tx_text(),
-                                            Space::with_width(50),
                                             text(action),
                                             Space::with_width(5),
                                             button(text_monospace(space))
@@ -208,101 +205,100 @@ impl State {
                                             }),
                                         )
                                         .align_y(Center)
-                                        .into()
                                     };
 
                                 container(
                                     column![
-                                        match event {
-                                            Some(TxEvent {
-                                                kind: TxEventKind::Commit,
-                                                space,
-                                                ..
-                                            }) => tx_with_event(
-                                                "Commit",
-                                                space.as_ref().unwrap(),
-                                                None,
-                                            ),
-                                            Some(TxEvent {
-                                                kind: TxEventKind::Open,
-                                                space,
-                                                details,
-                                                ..
-                                            }) => tx_with_event(
-                                                "Open",
-                                                space.as_ref().unwrap(),
-                                                Some(
-                                                    OpenEventDetails::deserialize(
-                                                        details.as_ref().unwrap(),
-                                                    )
-                                                    .unwrap()
-                                                    .initial_bid,
-                                                ),
-                                            ),
-                                            Some(TxEvent {
-                                                kind: TxEventKind::Bid,
-                                                space,
-                                                details,
-                                                ..
-                                            }) => tx_with_event(
-                                                "Bid",
-                                                space.as_ref().unwrap(),
-                                                Some(
-                                                    BidEventDetails::deserialize(
-                                                        details.as_ref().unwrap(),
-                                                    )
-                                                    .unwrap()
-                                                    .current_bid,
-                                                ),
-                                            ),
-                                            Some(TxEvent {
-                                                kind: TxEventKind::Transfer,
-                                                space,
-                                                ..
-                                            }) => tx_with_event(
-                                                "Transfer",
-                                                space.as_ref().unwrap(),
-                                                None
-                                            ),
-                                            Some(TxEvent {
-                                                kind: TxEventKind::Renew,
-                                                space,
-                                                ..
-                                            }) => tx_with_event(
-                                                "Renew",
-                                                space.as_ref().unwrap(),
-                                                None
-                                            ),
-                                            _ => tx_without_event(),
-                                        },
-                                        {
-                                            let element: Element<'a, Message> = match block_height {
-                                                Some(block_height) => text_small(
-                                                    height_to_past_est(block_height, tip_height),
+                                        row![
+                                            container(
+                                                button(
+                                                    Row::new()
+                                                        .push_maybe(if bumped {
+                                                            Some(text_icon(Icon::ArrowBigUpLines))
+                                                        } else {
+                                                            None
+                                                        })
+                                                        .push(text_monospace(format!(
+                                                            "{} .. {}",
+                                                            &txid_string[..8],
+                                                            &txid_string[54..]
+                                                        ))),
                                                 )
-                                                .into(),
-                                                None => {
-                                                    if event.map_or(false, |event| {
-                                                        event.kind == TxEventKind::Commit
-                                                    }) {
-                                                        text_small("Unconfirmed").into()
-                                                    } else {
-                                                        button(
-                                                            row![
-                                                                text_icon(Icon::ArrowBigUpLines),
-                                                                text_small("Unconfirmed"),
-                                                            ]
-                                                            .spacing(5)
-                                                            .align_y(Center),
+                                                .style(button::text)
+                                                .padding(0)
+                                                .on_press(Message::TxidPress { txid })
+                                            )
+                                            .width(FillPortion(3)),
+                                            match event {
+                                                Some(TxEvent {
+                                                    kind: TxEventKind::Commit,
+                                                    space,
+                                                    ..
+                                                }) => tx_row_with_event(
+                                                    "Commit",
+                                                    space.as_ref().unwrap(),
+                                                    None,
+                                                ),
+                                                Some(TxEvent {
+                                                    kind: TxEventKind::Open,
+                                                    space,
+                                                    details,
+                                                    ..
+                                                }) => tx_row_with_event(
+                                                    "Open",
+                                                    space.as_ref().unwrap(),
+                                                    Some(
+                                                        OpenEventDetails::deserialize(
+                                                            details.as_ref().unwrap(),
                                                         )
-                                                        .on_press(Message::BumpFeePress { txid })
-                                                        .style(button::text)
-                                                        .padding(0)
-                                                        .into()
-                                                    }
-                                                }
-                                            };
-                                            element
+                                                        .unwrap()
+                                                        .initial_bid,
+                                                    ),
+                                                ),
+                                                Some(TxEvent {
+                                                    kind: TxEventKind::Bid,
+                                                    space,
+                                                    details,
+                                                    ..
+                                                }) => tx_row_with_event(
+                                                    "Bid",
+                                                    space.as_ref().unwrap(),
+                                                    Some(
+                                                        BidEventDetails::deserialize(
+                                                            details.as_ref().unwrap(),
+                                                        )
+                                                        .unwrap()
+                                                        .current_bid,
+                                                    ),
+                                                ),
+                                                Some(TxEvent {
+                                                    kind: TxEventKind::Transfer,
+                                                    space,
+                                                    ..
+                                                }) => tx_row_with_event(
+                                                    "Transfer",
+                                                    space.as_ref().unwrap(),
+                                                    None
+                                                ),
+                                                Some(TxEvent {
+                                                    kind: TxEventKind::Renew,
+                                                    space,
+                                                    ..
+                                                }) => tx_row_with_event(
+                                                    "Renew",
+                                                    space.as_ref().unwrap(),
+                                                    None
+                                                ),
+                                                _ => tx_row_without_event(),
+                                            }
+                                            .width(FillPortion(4)),
+                                        ],
+                                        match block_height {
+                                            Some(block_height) => text_small(height_to_past_est(
+                                                block_height,
+                                                tip_height
+                                            ),),
+                                            None => text_small("Unconfirmed"),
                                         }
                                     ]
                                     .spacing(5)

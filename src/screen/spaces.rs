@@ -5,7 +5,7 @@ use crate::{
         form::{text_input, Form},
         icon::{text_input_icon, Icon},
         tabs::TabsRow,
-        text::{error_block, text_big, text_bold, text_monospace, text_monospace_bold, text_small},
+        text::{error_block, text_big, text_bold,  text_monospace_bold, text_small},
     },
 };
 use iced::{
@@ -298,7 +298,7 @@ impl State {
             ),
             if is_winning {
                 column![
-                    text_big("Claim space"),
+                    text_big("Register space"),
                     error_block(self.error.as_ref()),
                     self.register_form(),
                 ]
