@@ -602,7 +602,7 @@ impl App {
                             Ok(out) => {
                                 self.spaces.insert(
                                     slabel,
-                                    out.map(|out| out.spaceout.space.unwrap().covenant),
+                                    out,
                                 );
                             }
                             Err(e) => {
@@ -681,12 +681,12 @@ impl App {
                                                 spaces
                                                     .into_iter()
                                                     .map(|out| {
-                                                        let space = out.spaceout.space.unwrap();
+                                                        let name = out.spaceout.space.as_ref().unwrap().name.clone();
                                                         self.spaces.insert(
-                                                            space.name.clone(),
-                                                            Some(space.covenant),
+                                                            name.clone(),
+                                                            Some(out),
                                                         );
-                                                        space.name
+                                                        name
                                                     })
                                                     .collect()
                                             };

@@ -370,7 +370,7 @@ impl State {
         owned_spaces: &'a Vec<SLabel>,
     ) -> Element<'a, Message> {
         if let Some(slabel) = self.slabel.as_ref() {
-            let covenant = spaces.get(&slabel);
+            let covenant = spaces.get_covenant(&slabel);
             column![
                 row![
                     button(text_icon(Icon::ChevronLeft).size(20))
@@ -430,7 +430,7 @@ impl State {
                     Danger,
                 }
 
-                let (data, state): (Element<'a, Message>, State) = match spaces.get(slabel) {
+                let (data, state): (Element<'a, Message>, State) = match spaces.get_covenant(slabel) {
                     None => (Space::with_width(Fill).into(), State::None),
                     Some(None) => (text_small("Available").width(Fill).into(), State::None),
                     Some(Some(Covenant::Bid {
