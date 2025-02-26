@@ -126,7 +126,7 @@ impl State {
                             .style(button::text)
                             .padding(0)
                     ]
-                    .push_maybe(amount.map(|amount| text_monospace(format_amount(amount))))
+                    .push_maybe(amount.map(|amount| text(format_amount(amount))))
                 };
 
                 let event_row_with_string = |action: &'static str, s: String| -> Row<'a, Message> {
@@ -306,7 +306,7 @@ impl State {
             }
         } else {
             column![
-                column![text_big("Balance"), text_monospace(format_amount(balance)),]
+                column![text_big("Balance"), text(format_amount(balance)),]
                     .spacing(10)
                     .width(Fill)
                     .align_x(Center),
@@ -335,7 +335,7 @@ impl State {
                                         row![
                                             horizontal_space(),
                                             if diff >= 0 {
-                                                text_monospace(format!(
+                                                text(format!(
                                                     "+{}",
                                                     format_amount_number(diff as u64)
                                                 ))
@@ -349,7 +349,7 @@ impl State {
                                                     ),
                                                 })
                                             } else {
-                                                text_monospace(format!(
+                                                text(format!(
                                                     "-{}",
                                                     format_amount_number(-diff as u64)
                                                 ))
@@ -382,7 +382,7 @@ impl State {
                                         ]
                                         .push_maybe(
                                             amount.map(|amount| {
-                                                text_monospace(format_amount(amount))
+                                                text(format_amount(amount))
                                             }),
                                         )
                                         .spacing(5)
