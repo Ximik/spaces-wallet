@@ -115,7 +115,6 @@ impl State {
                 Action::None
             }
             Message::SLabelPress(slabel) => {
-                self.search = String::new();
                 self.slabel = Some(slabel.clone());
                 Action::GetSpaceInfo { slabel }
             }

@@ -4,7 +4,7 @@ use crate::{
     widget::{
         form::Form,
         icon::{button_icon, text_icon, Icon},
-        text::{error_block, text_big, text_monospace, text_monospace_bold, text_small},
+        text::{error_block, text_big, text_bold, text_monospace, text_monospace_bold, text_small},
     },
 };
 use iced::{
@@ -114,36 +114,118 @@ impl State {
     ) -> Element<'a, Message> {
         if let Some(txid) = self.txid.as_ref() {
             if let Some(transaction) = transactions.iter().find(|tx| &tx.txid == txid) {
-                let event_data_with_space = |action: &'static str,
-                                             space: &'a str,
-                                             amount: Option<Amount>|
+                let event_row_with_space = |action: &'static str,
+                                            space: &'a str,
+                                            amount: Option<Amount>|
                  -> Row<'a, Message> {
                     let slabel = SLabel::from_str(space).unwrap();
                     row![
-                        text(action).width(Fill),
-                        container(
-                            button(text_monospace(space))
-                                .on_press(Message::SpacePress(slabel))
-                                .style(button::text)
-                                .padding(0)
-                        )
-                        .width(Fill),
-                        amount.map_or(Space::with_width(Fill).into(), |amount| {
-                            let element: Element<'a, Message> =
-                                text_monospace(format_amount(amount)).into();
-                            element
-                        }),
+                        text(action),
+                        button(text_monospace(space))
+                            .on_press(Message::SpacePress(slabel))
+                            .style(button::text)
+                            .padding(0)
                     ]
+                    .push_maybe(amount.map(|amount| text_monospace(format_amount(amount))))
                 };
 
-                let event_data_with_string =
-                    |action: &'static str, s: String| -> Row<'a, Message> {
-                        row![
-                            text(action).width(Fill),
-                            text(s).width(Fill),
-                            Space::with_width(Fill)
-                        ]
-                    };
+                let event_row_with_string = |action: &'static str, s: String| -> Row<'a, Message> {
+                    row![text(action), text(s)]
+                };
+
+                let events_rows: Vec<Element<'a, Message>> = transaction
+                    .events
+                    .iter()
+                    .filter_map(|event| match event {
+                        TxEvent {
+                            kind: TxEventKind::Commit,
+                            space,
+                            ..
+                        } => Some(event_row_with_space(
+                            "Commit",
+                            space.as_ref().unwrap(),
+                            None,
+                        )),
+                        TxEvent {
+                            kind: TxEventKind::Bidout,
+                            details,
+                            ..
+                        } => Some(event_row_with_string(
+                            "Bidout",
+                            BidoutEventDetails::deserialize(details.as_ref().unwrap())
+                                .unwrap()
+                                .count
+                                .to_string(),
+                        )),
+                        TxEvent {
+                            kind: TxEventKind::Open,
+                            space,
+                            details,
+                            ..
+                        } => Some(event_row_with_space(
+                            "Open",
+                            space.as_ref().unwrap(),
+                            Some(
+                                OpenEventDetails::deserialize(details.as_ref().unwrap())
+                                    .unwrap()
+                                    .initial_bid,
+                            ),
+                        )),
+                        TxEvent {
+                            kind: TxEventKind::Bid,
+                            space,
+                            details,
+                            ..
+                        } => Some(event_row_with_space(
+                            "Bid",
+                            space.as_ref().unwrap(),
+                            Some(
+                                BidEventDetails::deserialize(details.as_ref().unwrap())
+                                    .unwrap()
+                                    .current_bid,
+                            ),
+                        )),
+                        TxEvent {
+                            kind: TxEventKind::Register,
+                            space,
+                            ..
+                        } => Some(event_row_with_space(
+                            "Register",
+                            space.as_ref().unwrap(),
+                            None,
+                        )),
+                        TxEvent {
+                            kind: TxEventKind::Transfer,
+                            space,
+                            ..
+                        } => Some(event_row_with_space(
+                            "Transfer",
+                            space.as_ref().unwrap(),
+                            None,
+                        )),
+                        TxEvent {
+                            kind: TxEventKind::Renew,
+                            space,
+                            ..
+                        } => Some(event_row_with_space("Renew", space.as_ref().unwrap(), None)),
+                        TxEvent {
+                            kind: TxEventKind::Send,
+                            space,
+                            ..
+                        } => Some(event_row_with_space("Send", space.as_ref().unwrap(), None)),
+                        TxEvent {
+                            kind: TxEventKind::Buy,
+                            space,
+                            ..
+                        } => Some(event_row_with_space("Buy", space.as_ref().unwrap(), None)),
+                        TxEvent {
+                            kind: TxEventKind::FeeBump,
+                            ..
+                        } => Some(event_row_with_string("FeeBump", String::new())),
+                        _ => None,
+                    })
+                    .map(|row| row.spacing(10).into())
+                    .collect();
 
                 column![
                     row![
@@ -160,6 +242,7 @@ impl State {
                     horizontal_rule(3),
                     row![
                         column![
+                            text_bold("Details"),
                             text(format!("Sent: {}", format_amount(transaction.sent))),
                             text(format!("Received: {}", format_amount(transaction.received))),
                             if let Some(block_height) = transaction.block_height {
@@ -177,120 +260,13 @@ impl State {
                                 .fee
                                 .map(|fee| { text(format!("Fee: {}", format_amount(fee))) })
                         )
-                        .extend(
-                            transaction
-                                .events
-                                .iter()
-                                .filter_map(|event| {
-                                    match event {
-                                        TxEvent {
-                                            kind: TxEventKind::Commit,
-                                            space,
-                                            ..
-                                        } => Some(event_data_with_space(
-                                            "Commit",
-                                            space.as_ref().unwrap(),
-                                            None,
-                                        )),
-                                        TxEvent {
-                                            kind: TxEventKind::Bidout,
-                                            details,
-                                            ..
-                                        } => Some(event_data_with_string(
-                                            "Bidout",
-                                            BidoutEventDetails::deserialize(
-                                                details.as_ref().unwrap(),
-                                            )
-                                            .unwrap()
-                                            .count
-                                            .to_string(),
-                                        )),
-                                        TxEvent {
-                                            kind: TxEventKind::Open,
-                                            space,
-                                            details,
-                                            ..
-                                        } => Some(event_data_with_space(
-                                            "Open",
-                                            space.as_ref().unwrap(),
-                                            Some(
-                                                OpenEventDetails::deserialize(
-                                                    details.as_ref().unwrap(),
-                                                )
-                                                .unwrap()
-                                                .initial_bid,
-                                            ),
-                                        )),
-                                        TxEvent {
-                                            kind: TxEventKind::Bid,
-                                            space,
-                                            details,
-                                            ..
-                                        } => Some(event_data_with_space(
-                                            "Bid",
-                                            space.as_ref().unwrap(),
-                                            Some(
-                                                BidEventDetails::deserialize(
-                                                    details.as_ref().unwrap(),
-                                                )
-                                                .unwrap()
-                                                .current_bid,
-                                            ),
-                                        )),
-                                        TxEvent {
-                                            kind: TxEventKind::Register,
-                                            space,
-                                            ..
-                                        } => Some(event_data_with_space(
-                                            "Register",
-                                            space.as_ref().unwrap(),
-                                            None,
-                                        )),
-                                        TxEvent {
-                                            kind: TxEventKind::Transfer,
-                                            space,
-                                            ..
-                                        } => Some(event_data_with_space(
-                                            "Transfer",
-                                            space.as_ref().unwrap(),
-                                            None,
-                                        )),
-                                        TxEvent {
-                                            kind: TxEventKind::Renew,
-                                            space,
-                                            ..
-                                        } => Some(event_data_with_space(
-                                            "Renew",
-                                            space.as_ref().unwrap(),
-                                            None,
-                                        )),
-                                        TxEvent {
-                                            kind: TxEventKind::Send,
-                                            space,
-                                            ..
-                                        } => Some(event_data_with_space(
-                                            "Send",
-                                            space.as_ref().unwrap(),
-                                            None,
-                                        )),
-                                        TxEvent {
-                                            kind: TxEventKind::Buy,
-                                            space,
-                                            ..
-                                        } => Some(event_data_with_space(
-                                            "Buy",
-                                            space.as_ref().unwrap(),
-                                            None,
-                                        )),
-                                        TxEvent {
-                                            kind: TxEventKind::FeeBump,
-                                            ..
-                                        } => Some(event_data_with_string("FeeBump", String::new())),
-                                        _ => None,
-                                    }
-                                })
-                                .map(|row| row.into())
-                        )
+                        .push_maybe(if events_rows.is_empty() {
+                            None
+                        } else {
+                            Some(text_bold("Events"))
+                        })
+                        .extend(events_rows.into_iter())
+                        .spacing(10)
                         .width(Fill),
                         if transaction.block_height.is_some() {
                             column![]
