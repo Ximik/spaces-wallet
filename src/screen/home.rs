@@ -242,24 +242,24 @@ impl State {
                     horizontal_rule(3),
                     row![
                         column![
-                            text_bold("Details"),
+                            text_bold("Info"),
                             text(format!("Sent: {}", format_amount(transaction.sent))),
                             text(format!("Received: {}", format_amount(transaction.received))),
-                            if let Some(block_height) = transaction.block_height {
-                                text(format!(
-                                    "Confirmed block: {} ({})",
-                                    block_height,
-                                    height_to_past_est(block_height, tip_height)
-                                ))
-                            } else {
-                                text("Unconfirmed")
-                            }
                         ]
                         .push_maybe(
                             transaction
                                 .fee
                                 .map(|fee| { text(format!("Fee: {}", format_amount(fee))) })
                         )
+                        .push_maybe(if let Some(block_height) = transaction.block_height {
+                            Some(text(format!(
+                                "Confirmed: {} ({})",
+                                block_height,
+                                height_to_past_est(block_height, tip_height)
+                            )))
+                        } else {
+                            None
+                        })
                         .push_maybe(if events_rows.is_empty() {
                             None
                         } else {
