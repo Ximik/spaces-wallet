@@ -3,7 +3,7 @@ pub fn format_amount_number(mut n: u64) -> String {
 
     while n > 0 {
         if (result.len() + 1) % 4 == 0 {
-            result.push(b',');
+            result.push(b' ');
         }
         result.push(b'0' + (n % 10) as u8);
         n /= 10;
@@ -14,7 +14,7 @@ pub fn format_amount_number(mut n: u64) -> String {
     } else {
         result.reverse();
     }
-    result.extend_from_slice(b" satoshi");
+    result.extend_from_slice(b" SAT");
     String::from_utf8(result).unwrap()
 }
 
