@@ -210,9 +210,15 @@ impl State {
                         } => Some(event_row_with_space("Renew", space.as_ref().unwrap(), None)),
                         TxEvent {
                             kind: TxEventKind::Send,
-                            space,
                             ..
-                        } => Some(event_row_with_space("Send", space.as_ref().unwrap(), None)),
+                        } => Some(event_row_with_string(
+                            "Send",
+                            format_amount(
+                                SendEventDetails::deserialize(event.details.as_ref().unwrap())
+                                    .unwrap()
+                                    .amount,
+                            ),
+                        )),
                         TxEvent {
                             kind: TxEventKind::Buy,
                             space,
@@ -253,7 +259,7 @@ impl State {
                         )
                         .push_maybe(if let Some(block_height) = transaction.block_height {
                             Some(text(format!(
-                                "Confirmed: {} ({})",
+                                "Block: {} ({})",
                                 block_height,
                                 height_to_past_est(block_height, tip_height)
                             )))
@@ -462,6 +468,15 @@ impl State {
                                                     ..
                                                 }) => tx_data_with_event(
                                                     "Renew",
+                                                    space.as_ref().unwrap(),
+                                                    None
+                                                ),
+                                                Some(TxEvent {
+                                                    kind: TxEventKind::Buy,
+                                                    space,
+                                                    ..
+                                                }) => tx_data_with_event(
+                                                    "Buy",
                                                     space.as_ref().unwrap(),
                                                     None
                                                 ),
