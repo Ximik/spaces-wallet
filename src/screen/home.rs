@@ -227,7 +227,7 @@ impl State {
                         TxEvent {
                             kind: TxEventKind::FeeBump,
                             ..
-                        } => Some(event_row_with_string("FeeBump", String::new())),
+                        } => Some(event_row_with_string("Bump fee", String::new())),
                         _ => None,
                     })
                     .map(|row| row.spacing(10).into())
