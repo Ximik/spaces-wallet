@@ -1,10 +1,14 @@
 pub use protocol::{bitcoin::Txid, slabel::SLabel, Covenant, FullSpaceOut};
 pub use spaced::wallets::{AddressKind, ListSpacesResponse, TxInfo};
 pub use std::str::FromStr;
+use wallet::bitcoin::OutPoint;
 pub use wallet::{
     bdk_wallet::serde::Deserialize,
     bitcoin::{Amount, Denomination, FeeRate},
-    tx_event::{BidEventDetails, BidoutEventDetails, OpenEventDetails, TxEvent, TxEventKind},
+    tx_event::{
+        BidEventDetails, BidoutEventDetails, OpenEventDetails, SendEventDetails, TxEvent,
+        TxEventKind,
+    },
     Balance,
 };
 
@@ -53,7 +57,34 @@ pub fn fee_rate_from_str(s: &str) -> Option<Option<FeeRate>> {
     }
 }
 
-pub type SpacesState = rustc_hash::FxHashMap<SLabel, Option<Covenant>>;
+#[derive(Debug)]
+pub struct SpaceState {
+    outpoint: OutPoint,
+    covenant: Covenant,
+}
+#[derive(Debug, Default)]
+pub struct SpacesState(rustc_hash::FxHashMap<SLabel, Option<SpaceState>>);
+impl SpacesState {
+    pub fn insert(&mut self, slabel: SLabel, out: Option<FullSpaceOut>) {
+        self.0.insert(
+            slabel,
+            out.map(|out| SpaceState {
+                outpoint: out.outpoint(),
+                covenant: out.spaceout.space.unwrap().covenant,
+            }),
+        );
+    }
+
+    pub fn get_outpoint(&self, slabel: &SLabel) -> Option<&OutPoint> {
+        self.0
+            .get(slabel)
+            .and_then(|o| o.as_ref().map(|s| &s.outpoint))
+    }
+
+    pub fn get_covenant(&self, slabel: &SLabel) -> Option<Option<&Covenant>> {
+        self.0.get(slabel).map(|o| o.as_ref().map(|s| &s.covenant))
+    }
+}
 
 use iced::widget::qr_code::Data as QrCode;
 #[derive(Debug)]

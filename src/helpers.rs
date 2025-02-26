@@ -1,21 +1,26 @@
 pub fn format_amount_number(mut n: u64) -> String {
-    let mut result = Vec::new();
+    if n == 0 {
+        return "0 sat".to_string();
+    }
 
+    let mut digits = Vec::new();
     while n > 0 {
-        if (result.len() + 1) % 4 == 0 {
-            result.push(b' ');
-        }
-        result.push(b'0' + (n % 10) as u8);
+        digits.push((n % 10) as u8);
         n /= 10;
     }
 
-    if result.is_empty() {
-        result.push(b'0');
-    } else {
-        result.reverse();
+    let l = digits.len();
+    let mut result = String::with_capacity(l + (l - 1) / 3 + 4);
+
+    for (i, &digit) in digits.iter().rev().enumerate() {
+        if i > 0 && (l - i) % 3 == 0 {
+            result.push('\u{2009}');
+        }
+        result.push(char::from_digit(digit as u32, 10).unwrap());
     }
-    result.extend_from_slice(b" SAT");
-    String::from_utf8(result).unwrap()
+
+    result.push_str(" sat");
+    result
 }
 
 pub fn format_amount(amount: crate::types::Amount) -> String {

@@ -5,7 +5,7 @@ use crate::{
         form::{text_input, Form},
         icon::{button_icon, text_icon, text_input_icon, Icon},
         tabs::TabsRow,
-        text::{error_block, text_big, text_bold, text_monospace_bold, text_small},
+        text::{error_block, text_big, text_bold, text_monospace, text_monospace_bold, text_small},
     },
 };
 use iced::{
@@ -15,6 +15,7 @@ use iced::{
     },
     Border, Center, Element, Fill, Theme,
 };
+use wallet::bitcoin::OutPoint;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Filter {
@@ -39,6 +40,7 @@ pub enum Message {
     BackPress,
     SLabelPress(SLabel),
     CopySLabelPress(SLabel),
+    CopyOutpointPress(OutPoint),
     SearchInput(String),
     FilterPress(Filter),
     AmountInput(String),
@@ -119,6 +121,7 @@ impl State {
                 Action::GetSpaceInfo { slabel }
             }
             Message::CopySLabelPress(slabel) => Action::WriteClipboard(slabel.to_string()),
+            Message::CopyOutpointPress(outpoint) => Action::WriteClipboard(outpoint.to_string()),
             Message::SearchInput(search) => {
                 if is_slabel_input(&search) {
                     self.search = search;
@@ -331,16 +334,35 @@ impl State {
         &'a self,
         tip_height: u32,
         expire_height: u32,
+        outpoint: &'a OutPoint,
         is_owned: bool,
     ) -> Element<'a, Message> {
         row![
-            timeline::view(
-                4,
-                format!(
-                    "The space registration expires {}",
+            column![
+                text(format!(
+                    "Expires {}",
                     height_to_future_est(expire_height, tip_height)
-                )
-            ),
+                )),
+                row![
+                    text("Outpoint"),
+                    text_monospace({
+                        let txid_string = outpoint.txid.to_string();
+                        format!(
+                            "{}..{}:{}",
+                            &txid_string[..8],
+                            &txid_string[54..],
+                            outpoint.vout,
+                        )
+                    }),
+                    button_icon(Icon::Copy)
+                        .style(button::text)
+                        .on_press(Message::CopyOutpointPress(outpoint.clone())),
+                ]
+                .spacing(5)
+                .align_y(Center)
+            ]
+            .spacing(5)
+            .width(Fill),
             if is_owned {
                 column![
                     text_big("Transfer space"),
@@ -349,8 +371,9 @@ impl State {
                 ]
                 .spacing(10)
             } else {
-                column![Space::new(Fill, Fill)]
+                column![]
             }
+            .width(Fill)
         ]
         .into()
     }
@@ -364,7 +387,7 @@ impl State {
         owned_spaces: &'a Vec<SLabel>,
     ) -> Element<'a, Message> {
         if let Some(slabel) = self.slabel.as_ref() {
-            let covenant = spaces.get(&slabel);
+            let covenant = spaces.get_covenant(&slabel);
             column![
                 row![
                     button(text_icon(Icon::ChevronLeft).size(20))
@@ -395,7 +418,12 @@ impl State {
                     }
                     Some(Some(Covenant::Transfer { expire_height, .. })) => {
                         let is_owned = owned_spaces.contains(&slabel);
-                        self.registered_view(tip_height, *expire_height, is_owned)
+                        self.registered_view(
+                            tip_height,
+                            *expire_height,
+                            spaces.get_outpoint(&slabel).unwrap(),
+                            is_owned,
+                        )
                     }
                     Some(Some(Covenant::Reserved)) => center(text("The space is locked")).into(),
                 },
@@ -424,7 +452,8 @@ impl State {
                     Danger,
                 }
 
-                let (data, state): (Element<'a, Message>, State) = match spaces.get(slabel) {
+                let (data, state): (Element<'a, Message>, State) = match spaces.get_covenant(slabel)
+                {
                     None => (Space::with_width(Fill).into(), State::None),
                     Some(None) => (text_small("Available").width(Fill).into(), State::None),
                     Some(Some(Covenant::Bid {

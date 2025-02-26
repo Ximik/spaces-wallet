@@ -126,7 +126,7 @@ impl State {
                             .style(button::text)
                             .padding(0)
                     ]
-                    .push_maybe(amount.map(|amount| text_monospace(format_amount(amount))))
+                    .push_maybe(amount.map(|amount| text(format_amount(amount))))
                 };
 
                 let event_row_with_string = |action: &'static str, s: String| -> Row<'a, Message> {
@@ -210,9 +210,15 @@ impl State {
                         } => Some(event_row_with_space("Renew", space.as_ref().unwrap(), None)),
                         TxEvent {
                             kind: TxEventKind::Send,
-                            space,
                             ..
-                        } => Some(event_row_with_space("Send", space.as_ref().unwrap(), None)),
+                        } => Some(event_row_with_string(
+                            "Send",
+                            format_amount(
+                                SendEventDetails::deserialize(event.details.as_ref().unwrap())
+                                    .unwrap()
+                                    .amount,
+                            ),
+                        )),
                         TxEvent {
                             kind: TxEventKind::Buy,
                             space,
@@ -221,7 +227,7 @@ impl State {
                         TxEvent {
                             kind: TxEventKind::FeeBump,
                             ..
-                        } => Some(event_row_with_string("FeeBump", String::new())),
+                        } => Some(event_row_with_string("Bump fee", String::new())),
                         _ => None,
                     })
                     .map(|row| row.spacing(10).into())
@@ -242,24 +248,24 @@ impl State {
                     horizontal_rule(3),
                     row![
                         column![
-                            text_bold("Details"),
+                            text_bold("Info"),
                             text(format!("Sent: {}", format_amount(transaction.sent))),
                             text(format!("Received: {}", format_amount(transaction.received))),
-                            if let Some(block_height) = transaction.block_height {
-                                text(format!(
-                                    "Confirmed block: {} ({})",
-                                    block_height,
-                                    height_to_past_est(block_height, tip_height)
-                                ))
-                            } else {
-                                text("Unconfirmed")
-                            }
                         ]
                         .push_maybe(
                             transaction
                                 .fee
                                 .map(|fee| { text(format!("Fee: {}", format_amount(fee))) })
                         )
+                        .push_maybe(if let Some(block_height) = transaction.block_height {
+                            Some(text(format!(
+                                "Block: {} ({})",
+                                block_height,
+                                height_to_past_est(block_height, tip_height)
+                            )))
+                        } else {
+                            None
+                        })
                         .push_maybe(if events_rows.is_empty() {
                             None
                         } else {
@@ -300,7 +306,7 @@ impl State {
             }
         } else {
             column![
-                column![text_big("Balance"), text_monospace(format_amount(balance)),]
+                column![text_big("Balance"), text(format_amount(balance)),]
                     .spacing(10)
                     .width(Fill)
                     .align_x(Center),
@@ -329,7 +335,7 @@ impl State {
                                         row![
                                             horizontal_space(),
                                             if diff >= 0 {
-                                                text_monospace(format!(
+                                                text(format!(
                                                     "+{}",
                                                     format_amount_number(diff as u64)
                                                 ))
@@ -343,7 +349,7 @@ impl State {
                                                     ),
                                                 })
                                             } else {
-                                                text_monospace(format!(
+                                                text(format!(
                                                     "-{}",
                                                     format_amount_number(-diff as u64)
                                                 ))
@@ -376,7 +382,7 @@ impl State {
                                         ]
                                         .push_maybe(
                                             amount.map(|amount| {
-                                                text_monospace(format_amount(amount))
+                                                text(format_amount(amount))
                                             }),
                                         )
                                         .spacing(5)
@@ -462,6 +468,15 @@ impl State {
                                                     ..
                                                 }) => tx_data_with_event(
                                                     "Renew",
+                                                    space.as_ref().unwrap(),
+                                                    None
+                                                ),
+                                                Some(TxEvent {
+                                                    kind: TxEventKind::Buy,
+                                                    space,
+                                                    ..
+                                                }) => tx_data_with_event(
+                                                    "Buy",
                                                     space.as_ref().unwrap(),
                                                     None
                                                 ),
