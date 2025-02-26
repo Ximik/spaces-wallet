@@ -333,26 +333,32 @@ impl State {
         expire_height: u32,
         is_owned: bool,
     ) -> Element<'a, Message> {
-        row![
-            timeline::view(
-                4,
-                format!(
-                    "The space registration expires {}",
+        if is_owned {
+            row![
+                column![text(format!(
+                    "Expires {}",
                     height_to_future_est(expire_height, tip_height)
-                )
-            ),
-            if is_owned {
+                ))]
+                .spacing(5)
+                .width(Fill),
                 column![
                     text_big("Transfer space"),
                     error_block(self.error.as_ref()),
                     self.transfer_form(),
                 ]
                 .spacing(10)
-            } else {
-                column![Space::new(Fill, Fill)]
-            }
-        ]
-        .into()
+                .width(Fill),
+            ]
+            .into()
+        } else {
+            timeline::view(
+                4,
+                format!(
+                    "The space registration expires {}",
+                    height_to_future_est(expire_height, tip_height)
+                ),
+            )
+        }
     }
 
     pub fn view<'a>(

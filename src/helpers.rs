@@ -1,6 +1,6 @@
 pub fn format_amount_number(mut n: u64) -> String {
     if n == 0 {
-        return "0 SAT".to_string();
+        return "0 sat".to_string();
     }
 
     let mut digits = Vec::new();
@@ -19,7 +19,7 @@ pub fn format_amount_number(mut n: u64) -> String {
         result.push(char::from_digit(digit as u32, 10).unwrap());
     }
 
-    result.push_str(" SAT");
+    result.push_str(" sat");
     result
 }
 
