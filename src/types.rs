@@ -1,16 +1,15 @@
-pub use protocol::{bitcoin::Txid, slabel::SLabel, Covenant, FullSpaceOut};
-pub use spaced::wallets::{AddressKind, ListSpacesResponse, TxInfo};
-pub use std::str::FromStr;
-use wallet::bitcoin::OutPoint;
-pub use wallet::{
+pub use spaces_client::wallets::{AddressKind, ListSpacesResponse, TxInfo};
+pub use spaces_protocol::{Covenant, FullSpaceOut, bitcoin::Txid, slabel::SLabel};
+pub use spaces_wallet::{
+    Balance,
     bdk_wallet::serde::Deserialize,
-    bitcoin::{Amount, Denomination, FeeRate},
+    bitcoin::{Amount, Denomination, FeeRate, OutPoint},
     tx_event::{
         BidEventDetails, BidoutEventDetails, OpenEventDetails, SendEventDetails, TxEvent,
         TxEventKind,
     },
-    Balance,
 };
+pub use std::str::FromStr;
 
 pub fn is_slabel_input(s: &str) -> bool {
     s.chars()

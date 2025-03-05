@@ -3,11 +3,11 @@ use std::sync::Arc;
 
 use iced::time;
 use iced::widget::{button, center, column, container, row, text, vertical_rule};
-use iced::{clipboard, Center, Element, Fill, Subscription, Task};
+use iced::{Center, Element, Fill, Subscription, Task, clipboard};
 
 use jsonrpsee::core::ClientError;
 use jsonrpsee::http_client::{HttpClient, HttpClientBuilder};
-use spaced::rpc::{
+use spaces_client::rpc::{
     BidParams, OpenParams, RegisterParams, RpcClient, RpcWalletRequest, RpcWalletTxBuilder,
     SendCoinsParams, ServerInfo, TransferSpacesParams,
 };
@@ -15,7 +15,7 @@ use spaced::rpc::{
 use crate::screen;
 use crate::types::*;
 use crate::widget::{
-    icon::{text_icon, Icon},
+    icon::{Icon, text_icon},
     text::error_block,
 };
 
@@ -261,8 +261,8 @@ impl App {
                     ),
                     RpcRequest::GetSpaceInfo { slabel } => Task::perform(
                         async move {
-                            use protocol::hasher::KeyHasher;
-                            use spaced::store::Sha256;
+                            use spaces_client::store::Sha256;
+                            use spaces_protocol::hasher::KeyHasher;
 
                             let hash = hex::encode(Sha256::hash(slabel.as_ref()));
                             let result = client.get_space(&hash).await.map_err(RpcError::from);
@@ -600,10 +600,7 @@ impl App {
                     RpcResponse::GetSpaceInfo { slabel, result } => {
                         match result {
                             Ok(out) => {
-                                self.spaces.insert(
-                                    slabel,
-                                    out,
-                                );
+                                self.spaces.insert(slabel, out);
                             }
                             Err(e) => {
                                 self.rpc_error = Some(e.to_string());
@@ -681,11 +678,14 @@ impl App {
                                                 spaces
                                                     .into_iter()
                                                     .map(|out| {
-                                                        let name = out.spaceout.space.as_ref().unwrap().name.clone();
-                                                        self.spaces.insert(
-                                                            name.clone(),
-                                                            Some(out),
-                                                        );
+                                                        let name = out
+                                                            .spaceout
+                                                            .space
+                                                            .as_ref()
+                                                            .unwrap()
+                                                            .name
+                                                            .clone();
+                                                        self.spaces.insert(name.clone(), Some(out));
                                                         name
                                                     })
                                                     .collect()
@@ -982,8 +982,10 @@ impl App {
 
     fn subscription(&self) -> Subscription<Message> {
         if self.wallet.is_some() && self.rpc_error.is_none() {
-            let mut subscriptions = vec![time::every(time::Duration::from_secs(30))
-                .map(|_| Message::RpcRequest(RpcRequest::GetServerInfo))];
+            let mut subscriptions = vec![
+                time::every(time::Duration::from_secs(30))
+                    .map(|_| Message::RpcRequest(RpcRequest::GetServerInfo)),
+            ];
             match self.screen {
                 Screen::Home => {
                     subscriptions.push(

@@ -2,20 +2,19 @@ use crate::{
     helpers::{format_amount, height_to_future_est},
     types::*,
     widget::{
-        form::{text_input, Form},
-        icon::{button_icon, text_icon, text_input_icon, Icon},
+        form::{Form, text_input},
+        icon::{Icon, button_icon, text_icon, text_input_icon},
         tabs::TabsRow,
         text::{error_block, text_big, text_bold, text_monospace, text_monospace_bold, text_small},
     },
 };
 use iced::{
-    font,
+    Border, Center, Element, Fill, Theme, font,
     widget::{
-        button, center, column, container, horizontal_rule, row, scrollable, text, Column, Space,
+        Column, Space, button, center, column, container, horizontal_rule, row, scrollable, text,
     },
-    Border, Center, Element, Fill, Theme,
 };
-use wallet::bitcoin::OutPoint;
+use spaces_wallet::bitcoin::OutPoint;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Filter {
@@ -603,8 +602,8 @@ impl State {
 mod timeline {
     use crate::widget::rect::*;
     use iced::{
-        widget::{text, Column, Row},
         Border, Center, Element, Fill, Theme,
+        widget::{Column, Row, text},
     };
 
     const CIRCLE_RADIUS: f32 = 20.0;

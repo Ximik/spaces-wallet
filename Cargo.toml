@@ -1,13 +1,13 @@
 [package]
 name = "spaces-wallet"
 version = "0.0.1"
-edition = "2021"
+edition = "2024"
 
 [dependencies]
 iced = { version = "0.13.1", features = ["tokio", "qr_code", "advanced"] }
-spaced = { git = "https://github.com/Ximik/spaces.git", branch = "wallet" }
-protocol = { git = "https://github.com/Ximik/spaces.git", branch = "wallet" }
-wallet = { git = "https://github.com/Ximik/spaces.git", branch = "wallet" }
+spaces_client = { git = "https://github.com/Ximik/spaces.git", branch = "wallet2" }
+spaces_protocol = { git = "https://github.com/Ximik/spaces.git", branch = "wallet2" }
+spaces_wallet = { git = "https://github.com/Ximik/spaces.git", branch = "wallet2" }
 jsonrpsee = { version = "0.22.5", features = ["http-client"] }
 clap = { version = "4.5.6", features = ["derive", "env"] }
 hex = "0.4.3"

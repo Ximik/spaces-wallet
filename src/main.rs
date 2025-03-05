@@ -7,7 +7,7 @@ mod widget;
 use app::App;
 
 use clap::Parser;
-use spaced::config::{default_spaces_rpc_port, ExtendedNetwork};
+use spaces_client::config::{ExtendedNetwork, default_spaces_rpc_port};
 
 #[derive(Parser, Debug)]
 #[command(version, about, long_about = None)]
