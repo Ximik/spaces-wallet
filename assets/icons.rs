@@ -1,6 +1,6 @@
 pub const FONT: iced::Font = iced::Font::with_name("icons");
 pub enum Icon {
-    Artboard,
+    CurrencyBitcoin,
     Copy,
     ArrowBigUpLines,
     ArrowDownToArc,
@@ -11,7 +11,7 @@ pub enum Icon {
 impl Icon {
     pub fn as_char(&self) -> char {
         match self {
-            Icon::Artboard => '\u{E000}',
+            Icon::CurrencyBitcoin => '\u{E000}',
             Icon::Copy => '\u{E001}',
             Icon::ArrowBigUpLines => '\u{E002}',
             Icon::ArrowDownToArc => '\u{E004}',

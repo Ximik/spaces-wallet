@@ -88,6 +88,10 @@ enum RpcRequest {
         slabel: SLabel,
         fee_rate: Option<FeeRate>,
     },
+    RenewSpace {
+        slabel: SLabel,
+        fee_rate: Option<FeeRate>,
+    },
     TransferSpace {
         slabel: SLabel,
         recipient: String,
@@ -143,6 +147,9 @@ enum RpcResponse {
         result: RpcResult<()>,
     },
     RegisterSpace {
+        result: RpcResult<()>,
+    },
+    RenewSpace {
         result: RpcResult<()>,
     },
     TransferSpace {
@@ -525,6 +532,40 @@ impl App {
                             Task::none()
                         }
                     }
+                    RpcRequest::RenewSpace { slabel, fee_rate } => {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
+                            Task::perform(
+                                async move {
+                                    let result = client
+                                        .wallet_send_request(
+                                            &wallet_name,
+                                            RpcWalletTxBuilder {
+                                                bidouts: None,
+                                                requests: vec![RpcWalletRequest::Transfer(
+                                                    TransferSpacesParams {
+                                                        spaces: vec![slabel.to_string()],
+                                                        to: None,
+                                                    },
+                                                )],
+                                                fee_rate,
+                                                dust: None,
+                                                force: false,
+                                                confirmed_only: false,
+                                                skip_tx_check: false,
+                                            },
+                                        )
+                                        .await
+                                        .map(|_| ())
+                                        .map_err(RpcError::from);
+                                    RpcResponse::RenewSpace { result }
+                                },
+                                Message::RpcResponse,
+                            )
+                        } else {
+                            Task::none()
+                        }
+                    }
                     RpcRequest::TransferSpace {
                         slabel,
                         recipient,
@@ -761,7 +802,7 @@ impl App {
                     RpcResponse::OpenSpace { result }
                     | RpcResponse::BidSpace { result }
                     | RpcResponse::RegisterSpace { result }
-                    | RpcResponse::TransferSpace { result } => match result {
+                    | RpcResponse::RenewSpace { result } => match result {
                         Ok(_) => {
                             self.spaces_screen.reset_inputs();
                             Task::done(Message::NavigateTo(Route::Home))
@@ -769,6 +810,24 @@ impl App {
                         Err(RpcError::Call { code, message }) => {
                             if code == -1 {
                                 self.spaces_screen.set_error(message);
+                            } else {
+                                self.rpc_error = Some(message);
+                            }
+                            Task::none()
+                        }
+                        Err(e) => {
+                            self.rpc_error = Some(e.to_string());
+                            Task::none()
+                        }
+                    },
+                    RpcResponse::TransferSpace { result } => match result {
+                        Ok(_) => {
+                            self.send_screen.reset_inputs();
+                            Task::done(Message::NavigateTo(Route::Home))
+                        }
+                        Err(RpcError::Call { code, message }) => {
+                            if code == -1 {
+                                self.send_screen.set_error(message);
                             } else {
                                 self.rpc_error = Some(message);
                             }
@@ -868,6 +927,15 @@ impl App {
                     amount,
                     fee_rate,
                 })),
+                screen::send::Action::SendSpace {
+                    recipient,
+                    slabel,
+                    fee_rate,
+                } => Task::done(Message::RpcRequest(RpcRequest::TransferSpace {
+                    slabel,
+                    recipient,
+                    fee_rate,
+                })),
                 screen::send::Action::None => Task::none(),
             },
             Message::ReceiveScreen(message) => match self.receive_screen.update(message) {
@@ -903,15 +971,12 @@ impl App {
                         fee_rate,
                     }))
                 }
-                screen::spaces::Action::TransferSpace {
-                    slabel,
-                    recipient,
-                    fee_rate,
-                } => Task::done(Message::RpcRequest(RpcRequest::TransferSpace {
-                    slabel,
-                    recipient,
-                    fee_rate,
-                })),
+                screen::spaces::Action::RenewSpace { slabel, fee_rate } => {
+                    Task::done(Message::RpcRequest(RpcRequest::RenewSpace {
+                        slabel,
+                        fee_rate,
+                    }))
+                }
                 screen::spaces::Action::None => Task::none(),
             },
         }
@@ -936,7 +1001,7 @@ impl App {
         let main: Element<Message> = if let Some(wallet) = self.wallet.as_ref() {
             row![
                 column![
-                    navbar_button("Home", Icon::Artboard, Route::Home, Screen::Home,),
+                    navbar_button("Home", Icon::CurrencyBitcoin, Route::Home, Screen::Home,),
                     navbar_button("Send", Icon::ArrowDownFromArc, Route::Send, Screen::Send,),
                     navbar_button(
                         "Receive",
@@ -955,7 +1020,10 @@ impl App {
                         .home_screen
                         .view(self.tip_height, wallet.balance, &wallet.transactions)
                         .map(Message::HomeScreen),
-                    Screen::Send => self.send_screen.view().map(Message::SendScreen),
+                    Screen::Send => self
+                        .send_screen
+                        .view(&wallet.owned_spaces)
+                        .map(Message::SendScreen),
                     Screen::Receive => self
                         .receive_screen
                         .view(wallet.coin_address.as_ref(), wallet.space_address.as_ref(),)

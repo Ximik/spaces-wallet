@@ -286,7 +286,7 @@ impl State {
                                         .flatten()
                                         .map(|_| Message::BumpFeeSubmit),
                                 )
-                                .add_labeled_input(
+                                .add_input(
                                     "Fee rate",
                                     "sat/vB",
                                     &self.fee_rate,

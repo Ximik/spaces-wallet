@@ -29,7 +29,6 @@ pub struct State {
     search: String,
     filter: Filter,
     amount: String,
-    recipient: String,
     fee_rate: String,
     error: Option<String>,
 }
@@ -43,12 +42,11 @@ pub enum Message {
     SearchInput(String),
     FilterPress(Filter),
     AmountInput(String),
-    RecipientInput(String),
     FeeRateInput(String),
     OpenSubmit,
     BidSubmit,
     RegisterSubmit,
-    TransferSubmit,
+    RenewSubmit,
 }
 
 #[derive(Debug, Clone)]
@@ -72,9 +70,8 @@ pub enum Action {
         slabel: SLabel,
         fee_rate: Option<FeeRate>,
     },
-    TransferSpace {
+    RenewSpace {
         slabel: SLabel,
-        recipient: String,
         fee_rate: Option<FeeRate>,
     },
 }
@@ -86,7 +83,6 @@ impl State {
 
     pub fn reset_inputs(&mut self) {
         self.amount = Default::default();
-        self.recipient = Default::default();
         self.fee_rate = Default::default();
     }
 
@@ -143,12 +139,6 @@ impl State {
                 }
                 Action::None
             }
-            Message::RecipientInput(recipient) => {
-                if is_recipient_input(&recipient) {
-                    self.recipient = recipient
-                }
-                Action::None
-            }
             Message::FeeRateInput(fee_rate) => {
                 if is_fee_rate_input(&fee_rate) {
                     self.fee_rate = fee_rate
@@ -169,9 +159,8 @@ impl State {
                 slabel: self.slabel.as_ref().unwrap().clone(),
                 fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
             },
-            Message::TransferSubmit => Action::TransferSpace {
+            Message::RenewSubmit => Action::RenewSpace {
                 slabel: self.slabel.as_ref().unwrap().clone(),
-                recipient: recipient_from_str(&self.recipient).unwrap(),
                 fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
             },
         }
@@ -184,8 +173,8 @@ impl State {
                 && fee_rate_from_str(&self.fee_rate).is_some())
             .then_some(Message::OpenSubmit),
         )
-        .add_labeled_input("Amount", "sat", &self.amount, Message::AmountInput)
-        .add_labeled_input(
+        .add_input("Amount", "sat", &self.amount, Message::AmountInput)
+        .add_input(
             "Fee rate",
             "sat/vB (auto if empty)",
             &self.fee_rate,
@@ -201,8 +190,8 @@ impl State {
                 && fee_rate_from_str(&self.fee_rate).is_some())
             .then_some(Message::BidSubmit),
         )
-        .add_labeled_input("Amount", "sat", &self.amount, Message::AmountInput)
-        .add_labeled_input(
+        .add_input("Amount", "sat", &self.amount, Message::AmountInput)
+        .add_input(
             "Fee rate",
             "sat/vB (auto if empty)",
             &self.fee_rate,
@@ -216,7 +205,7 @@ impl State {
             "Register",
             fee_rate_from_str(&self.fee_rate).map(|_| Message::RegisterSubmit),
         )
-        .add_labeled_input(
+        .add_input(
             "Fee rate",
             "sat/vB (auto if empty)",
             &self.fee_rate,
@@ -225,20 +214,12 @@ impl State {
         .into()
     }
 
-    fn transfer_form<'a>(&'a self) -> Element<'a, Message> {
+    fn renew_form<'a>(&'a self) -> Element<'a, Message> {
         Form::new(
-            "Send",
-            (recipient_from_str(&self.recipient).is_some()
-                && fee_rate_from_str(&self.fee_rate).is_some())
-            .then_some(Message::TransferSubmit),
+            "Renew",
+            fee_rate_from_str(&self.fee_rate).map(|_| Message::RenewSubmit),
         )
-        .add_labeled_input(
-            "To",
-            "bitcoin address or @space",
-            &self.recipient,
-            Message::RecipientInput,
-        )
-        .add_labeled_input(
+        .add_input(
             "Fee rate",
             "sat/vB (auto if empty)",
             &self.fee_rate,
@@ -364,9 +345,9 @@ impl State {
             .width(Fill),
             if is_owned {
                 column![
-                    text_big("Transfer space"),
+                    text_big("Renew space"),
                     error_block(self.error.as_ref()),
-                    self.transfer_form(),
+                    self.renew_form(),
                 ]
                 .spacing(10)
             } else {
