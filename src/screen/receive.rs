@@ -11,7 +11,7 @@ use iced::{
     Border, Center, Element, Fill, Theme,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct State(AddressKind);
 
 impl Default for State {

@@ -1,6 +1,8 @@
 use iced::{
     Background, Center, Element, Fill, Font, Shrink, Theme,
-    widget::{Button, Column, Container, Text, TextInput, pick_list},
+    widget::{
+        Button, Column, Container, Text, TextInput, column, pick_list, text_editor,
+    },
 };
 use std::borrow::Borrow;
 
@@ -9,6 +11,10 @@ where
     Message: Clone,
 {
     TextInput::new(placeholder, value).font(Font::MONOSPACE)
+}
+
+pub fn text_label<'a>(text: &'a str) -> Text<'a> {
+    Text::new(text).size(14)
 }
 
 pub fn submit_button<'a, Message: 'a>(
@@ -44,7 +50,7 @@ impl<'a, Message: Clone + 'a> Form<'a, Message> {
         }
     }
 
-    pub fn add_input(
+    pub fn add_text_input(
         mut self,
         label: &'a str,
         placeholder: &'a str,
@@ -52,16 +58,37 @@ impl<'a, Message: Clone + 'a> Form<'a, Message> {
         on_input: impl Fn(String) -> Message + 'a,
     ) -> Self {
         self.elements.push(
-            Column::new()
-                .push(Text::new(label).size(14))
-                .push(
-                    text_input(placeholder, value)
-                        .on_input(on_input)
-                        .on_submit_maybe(self.submit_message.clone())
-                        .padding(10),
-                )
-                .spacing(5)
-                .into(),
+            column![
+                text_label(label),
+                text_input(placeholder, value)
+                    .on_input(on_input)
+                    .on_submit_maybe(self.submit_message.clone())
+                    .padding(10),
+            ]
+            .spacing(5)
+            .into(),
+        );
+        self
+    }
+
+    pub fn add_text_editor(
+        mut self,
+        label: &'a str,
+        placeholder: &'a str,
+        content: &'a text_editor::Content,
+        on_action: impl Fn(text_editor::Action) -> Message + 'a,
+    ) -> Self {
+        self.elements.push(
+            column![
+                text_label(label),
+                text_editor(content)
+                    .placeholder(placeholder)
+                    .on_action(on_action)
+                    .font(Font::MONOSPACE)
+                    .padding(10),
+            ]
+            .spacing(5)
+            .into(),
         );
         self
     }
@@ -78,22 +105,22 @@ impl<'a, Message: Clone + 'a> Form<'a, Message> {
         on_select: impl Fn(T) -> Message + 'a,
     ) -> Self {
         self.elements.push(
-            Column::new()
-                .push(Text::new(label).size(14))
-                .push(
-                    pick_list(options, selected, on_select)
-                        .style(|theme: &Theme, status: pick_list::Status| {
-                            let palette = theme.extended_palette();
-                            pick_list::Style {
-                                background: Background::Color(palette.background.base.color),
-                                ..pick_list::default(theme, status)
-                            }
-                        })
-                        .width(Fill)
-                        .padding(10),
-                )
-                .spacing(5)
-                .into(),
+            column![
+                text_label(label),
+                pick_list(options, selected, on_select)
+                    .style(|theme: &Theme, status: pick_list::Status| {
+                        let palette = theme.extended_palette();
+                        pick_list::Style {
+                            background: Background::Color(palette.background.base.color),
+                            ..pick_list::default(theme, status)
+                        }
+                    })
+                    .font(Font::MONOSPACE)
+                    .width(Fill)
+                    .padding(10),
+            ]
+            .spacing(5)
+            .into(),
         );
         self
     }

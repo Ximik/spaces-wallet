@@ -101,6 +101,14 @@ enum RpcRequest {
         txid: Txid,
         fee_rate: FeeRate,
     },
+    BuySpace {
+        listing: Listing,
+        fee_rate: Option<FeeRate>,
+    },
+    SellSpace {
+        slabel: SLabel,
+        price: Amount,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -158,6 +166,13 @@ enum RpcResponse {
     BumpFee {
         result: RpcResult<()>,
     },
+    BuySpace {
+        result: RpcResult<()>,
+    },
+    SellSpace {
+        wallet_name: String,
+        result: RpcResult<Listing>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -167,6 +182,7 @@ enum Route {
     Receive,
     Spaces,
     Space(SLabel),
+    Market,
 }
 
 #[derive(Debug, Clone)]
@@ -178,6 +194,7 @@ enum Message {
     SendScreen(screen::send::Message),
     ReceiveScreen(screen::receive::Message),
     SpacesScreen(screen::spaces::Message),
+    MarketScreen(screen::market::Message),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -186,6 +203,7 @@ enum Screen {
     Send,
     Receive,
     Spaces,
+    Market,
 }
 
 #[derive(Debug)]
@@ -200,6 +218,7 @@ pub struct App {
     send_screen: screen::send::State,
     receive_screen: screen::receive::State,
     spaces_screen: screen::spaces::State,
+    market_screen: screen::market::State,
 }
 
 impl App {
@@ -237,6 +256,7 @@ impl App {
                 send_screen: Default::default(),
                 receive_screen: Default::default(),
                 spaces_screen: Default::default(),
+                market_screen: Default::default(),
             },
             Task::done(Message::RpcRequest(RpcRequest::LoadWallet {
                 wallet_name: args.wallet.into(),
@@ -622,6 +642,48 @@ impl App {
                             Task::none()
                         }
                     }
+                    RpcRequest::BuySpace { listing, fee_rate } => {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
+                            Task::perform(
+                                async move {
+                                    let result = client
+                                        .wallet_buy(&wallet_name, listing, fee_rate, false)
+                                        .await
+                                        .map(|_| ())
+                                        .map_err(RpcError::from);
+                                    RpcResponse::BuySpace { result }
+                                },
+                                Message::RpcResponse,
+                            )
+                        } else {
+                            Task::none()
+                        }
+                    }
+                    RpcRequest::SellSpace { slabel, price } => {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
+                            Task::perform(
+                                async move {
+                                    let result = client
+                                        .wallet_sell(
+                                            &wallet_name,
+                                            slabel.to_string(),
+                                            price.to_sat(),
+                                        )
+                                        .await
+                                        .map_err(RpcError::from);
+                                    RpcResponse::SellSpace {
+                                        wallet_name,
+                                        result,
+                                    }
+                                },
+                                Message::RpcResponse,
+                            )
+                        } else {
+                            Task::none()
+                        }
+                    }
                 }
             }
             Message::RpcResponse(response) => {
@@ -856,6 +918,46 @@ impl App {
                             Task::none()
                         }
                     },
+                    RpcResponse::BuySpace { result } => match result {
+                        Ok(_) => Task::done(Message::NavigateTo(Route::Home)),
+                        Err(RpcError::Call { code, message }) => {
+                            if code == -1 {
+                                self.market_screen.set_buy_error(message);
+                            } else {
+                                self.rpc_error = Some(message);
+                            }
+                            Task::none()
+                        }
+                        Err(e) => {
+                            self.rpc_error = Some(e.to_string());
+                            Task::none()
+                        }
+                    },
+                    RpcResponse::SellSpace {
+                        wallet_name,
+                        result,
+                    } => {
+                        match result {
+                            Ok(listing) => {
+                                if let Some(wallet) = self.wallet.as_ref() {
+                                    if wallet.name == wallet_name {
+                                        self.market_screen.set_sell_listing(listing);
+                                    }
+                                }
+                            }
+                            Err(RpcError::Call { code, message }) => {
+                                if code == -1 {
+                                    self.market_screen.set_sell_error(message);
+                                } else {
+                                    self.rpc_error = Some(message);
+                                }
+                            }
+                            Err(e) => {
+                                self.rpc_error = Some(e.to_string());
+                            }
+                        }
+                        Task::none()
+                    }
                 }
             }
             Message::NavigateTo(route) => match route {
@@ -873,7 +975,7 @@ impl App {
                 }
                 Route::Send => {
                     self.screen = Screen::Send;
-                    Task::none()
+                    Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces))
                 }
                 Route::Receive => {
                     self.screen = Screen::Receive;
@@ -902,6 +1004,10 @@ impl App {
                     self.screen = Screen::Spaces;
                     self.spaces_screen.set_slabel(&slabel);
                     Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
+                }
+                Route::Market => {
+                    self.screen = Screen::Market;
+                    Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces))
                 }
             },
             Message::HomeScreen(message) => match self.home_screen.update(message) {
@@ -979,6 +1085,19 @@ impl App {
                 }
                 screen::spaces::Action::None => Task::none(),
             },
+            Message::MarketScreen(message) => match self.market_screen.update(message) {
+                screen::market::Action::None => Task::none(),
+                screen::market::Action::Buy { listing, fee_rate } => {
+                    Task::done(Message::RpcRequest(RpcRequest::BuySpace {
+                        listing,
+                        fee_rate,
+                    }))
+                }
+                screen::market::Action::Sell { slabel, price } => {
+                    Task::done(Message::RpcRequest(RpcRequest::SellSpace { slabel, price }))
+                }
+                screen::market::Action::WriteClipboard(s) => clipboard::write(s),
+            },
         }
     }
 
@@ -1010,6 +1129,7 @@ impl App {
                         Screen::Receive,
                     ),
                     navbar_button("Spaces", Icon::At, Route::Spaces, Screen::Spaces,),
+                    navbar_button("Market", Icon::BuildingBank, Route::Market, Screen::Market,),
                 ]
                 .padding(10)
                 .spacing(5)
@@ -1038,6 +1158,10 @@ impl App {
                             &wallet.owned_spaces
                         )
                         .map(Message::SpacesScreen),
+                    Screen::Market => self
+                        .market_screen
+                        .view(&wallet.owned_spaces)
+                        .map(Message::MarketScreen),
                 })
                 .padding(20)
             ]

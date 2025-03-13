@@ -10,7 +10,7 @@ use crate::{
     },
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct State {
     asset_kind: AddressKind,
     recipient: String,
@@ -147,14 +147,14 @@ impl State {
                         && fee_rate_from_str(&self.fee_rate).is_some())
                     .then_some(Message::SendCoinsSubmit),
                 )
-                .add_input("Amount", "sat", &self.amount, Message::AmountInput)
-                .add_input(
+                .add_text_input("Amount", "sat", &self.amount, Message::AmountInput)
+                .add_text_input(
                     "To",
                     "bitcoin address or @space",
                     &self.recipient,
                     Message::RecipientInput,
                 )
-                .add_input(
+                .add_text_input(
                     "Fee rate",
                     "sat/vB (auto if empty)",
                     &self.fee_rate,
@@ -173,13 +173,13 @@ impl State {
                     self.slabel.as_ref(),
                     Message::SLabelSelect
                 )
-                .add_input(
+                .add_text_input(
                     "To",
                     "bitcoin address or @space",
                     &self.recipient,
                     Message::RecipientInput,
                 )
-                .add_input(
+                .add_text_input(
                     "Fee rate",
                     "sat/vB (auto if empty)",
                     &self.fee_rate,

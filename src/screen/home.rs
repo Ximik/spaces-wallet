@@ -15,7 +15,7 @@ use iced::{
     Border, Center, Element, Fill, FillPortion, Theme,
 };
 
-#[derive(Debug, Clone)]
+#[derive(Debug)]
 pub struct State {
     txid: Option<Txid>,
     transactions_limit: usize,
@@ -286,7 +286,7 @@ impl State {
                                         .flatten()
                                         .map(|_| Message::BumpFeeSubmit),
                                 )
-                                .add_input(
+                                .add_text_input(
                                     "Fee rate",
                                     "sat/vB",
                                     &self.fee_rate,

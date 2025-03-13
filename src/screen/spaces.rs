@@ -23,7 +23,7 @@ pub enum Filter {
     Bidding,
 }
 
-#[derive(Debug, Clone, Default)]
+#[derive(Debug, Default)]
 pub struct State {
     slabel: Option<SLabel>,
     search: String,
@@ -173,8 +173,8 @@ impl State {
                 && fee_rate_from_str(&self.fee_rate).is_some())
             .then_some(Message::OpenSubmit),
         )
-        .add_input("Amount", "sat", &self.amount, Message::AmountInput)
-        .add_input(
+        .add_text_input("Amount", "sat", &self.amount, Message::AmountInput)
+        .add_text_input(
             "Fee rate",
             "sat/vB (auto if empty)",
             &self.fee_rate,
@@ -190,8 +190,8 @@ impl State {
                 && fee_rate_from_str(&self.fee_rate).is_some())
             .then_some(Message::BidSubmit),
         )
-        .add_input("Amount", "sat", &self.amount, Message::AmountInput)
-        .add_input(
+        .add_text_input("Amount", "sat", &self.amount, Message::AmountInput)
+        .add_text_input(
             "Fee rate",
             "sat/vB (auto if empty)",
             &self.fee_rate,
@@ -205,7 +205,7 @@ impl State {
             "Register",
             fee_rate_from_str(&self.fee_rate).map(|_| Message::RegisterSubmit),
         )
-        .add_input(
+        .add_text_input(
             "Fee rate",
             "sat/vB (auto if empty)",
             &self.fee_rate,
@@ -219,7 +219,7 @@ impl State {
             "Renew",
             fee_rate_from_str(&self.fee_rate).map(|_| Message::RenewSubmit),
         )
-        .add_input(
+        .add_text_input(
             "Fee rate",
             "sat/vB (auto if empty)",
             &self.fee_rate,

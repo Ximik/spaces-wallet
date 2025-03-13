@@ -1,7 +1,8 @@
 pub use spaces_client::wallets::{AddressKind, ListSpacesResponse, TxInfo};
 pub use spaces_protocol::{Covenant, FullSpaceOut, bitcoin::Txid, slabel::SLabel};
+use spaces_wallet::bdk_wallet::serde_json;
 pub use spaces_wallet::{
-    Balance,
+    Balance, Listing,
     bdk_wallet::serde::Deserialize,
     bitcoin::{Amount, Denomination, FeeRate, OutPoint},
     tx_event::{
@@ -54,6 +55,10 @@ pub fn fee_rate_from_str(s: &str) -> Option<Option<FeeRate>> {
     } else {
         s.parse().ok().map(|n| FeeRate::from_sat_per_vb(n))
     }
+}
+
+pub fn listing_from_str(s: &str) -> Option<Listing> {
+    serde_json::from_str(s).ok()
 }
 
 #[derive(Debug)]
