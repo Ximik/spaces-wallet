@@ -11,6 +11,7 @@ use spaces_client::rpc::{
     BidParams, OpenParams, RegisterParams, RpcClient, RpcWalletRequest, RpcWalletTxBuilder,
     SendCoinsParams, ServerInfo, TransferSpacesParams,
 };
+use spaces_wallet::bdk_wallet::serde_json;
 
 use crate::screen;
 use crate::types::*;
@@ -109,6 +110,10 @@ enum RpcRequest {
         slabel: SLabel,
         price: Amount,
     },
+    SignEvent {
+        slabel: SLabel,
+        event: NostrEvent,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -173,6 +178,9 @@ enum RpcResponse {
         wallet_name: String,
         result: RpcResult<Listing>,
     },
+    SignEvent {
+        result: RpcResult<NostrEvent>,
+    },
 }
 
 #[derive(Debug, Clone)]
@@ -183,6 +191,7 @@ enum Route {
     Spaces,
     Space(SLabel),
     Market,
+    Sign,
 }
 
 #[derive(Debug, Clone)]
@@ -195,6 +204,9 @@ enum Message {
     ReceiveScreen(screen::receive::Message),
     SpacesScreen(screen::spaces::Message),
     MarketScreen(screen::market::Message),
+    SignScreen(screen::sign::Message),
+    EventFileLoaded(Result<Option<(String, NostrEvent)>, String>),
+    EventFileSaved(Result<(), String>),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -204,6 +216,7 @@ enum Screen {
     Receive,
     Spaces,
     Market,
+    Sign,
 }
 
 #[derive(Debug)]
@@ -219,6 +232,7 @@ pub struct App {
     receive_screen: screen::receive::State,
     spaces_screen: screen::spaces::State,
     market_screen: screen::market::State,
+    sign_screen: screen::sign::State,
 }
 
 impl App {
@@ -257,6 +271,7 @@ impl App {
                 receive_screen: Default::default(),
                 spaces_screen: Default::default(),
                 market_screen: Default::default(),
+                sign_screen: Default::default(),
             },
             Task::done(Message::RpcRequest(RpcRequest::LoadWallet {
                 wallet_name: args.wallet.into(),
@@ -684,6 +699,23 @@ impl App {
                             Task::none()
                         }
                     }
+                    RpcRequest::SignEvent { slabel, event } => {
+                        if let Some(wallet) = self.wallet.as_ref() {
+                            let wallet_name = wallet.name.clone();
+                            Task::perform(
+                                async move {
+                                    let result = client
+                                        .wallet_sign_event(&wallet_name, &slabel.to_string(), event)
+                                        .await
+                                        .map_err(RpcError::from);
+                                    RpcResponse::SignEvent { result }
+                                },
+                                Message::RpcResponse,
+                            )
+                        } else {
+                            Task::none()
+                        }
+                    }
                 }
             }
             Message::RpcResponse(response) => {
@@ -958,6 +990,39 @@ impl App {
                         }
                         Task::none()
                     }
+                    RpcResponse::SignEvent { result } => match result {
+                        Ok(event) => Task::future(async move {
+                            let file_path = rfd::AsyncFileDialog::new()
+                                .add_filter("JSON event", &["json"])
+                                .add_filter("All files", &["*"])
+                                .save_file()
+                                .await
+                                .map(|file| file.path().to_path_buf());
+
+                            if let Some(file_path) = file_path {
+                                let contents = serde_json::to_vec(&event).unwrap();
+                                Message::EventFileSaved(
+                                    tokio::fs::write(&file_path, contents)
+                                        .await
+                                        .map_err(|e| e.to_string()),
+                                )
+                            } else {
+                                Message::EventFileSaved(Ok(()))
+                            }
+                        }),
+                        Err(RpcError::Call { code, message }) => {
+                            if code == -1 {
+                                self.sign_screen.set_error(message);
+                            } else {
+                                self.rpc_error = Some(message);
+                            }
+                            Task::none()
+                        }
+                        Err(e) => {
+                            self.rpc_error = Some(e.to_string());
+                            Task::none()
+                        }
+                    },
                 }
             }
             Message::NavigateTo(route) => match route {
@@ -1007,6 +1072,10 @@ impl App {
                 }
                 Route::Market => {
                     self.screen = Screen::Market;
+                    Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces))
+                }
+                Route::Sign => {
+                    self.screen = Screen::Sign;
                     Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces))
                 }
             },
@@ -1098,6 +1167,47 @@ impl App {
                 }
                 screen::market::Action::WriteClipboard(s) => clipboard::write(s),
             },
+            Message::SignScreen(message) => match self.sign_screen.update(message) {
+                screen::sign::Action::None => Task::none(),
+                screen::sign::Action::FilePick => Task::future(async move {
+                    let path = rfd::AsyncFileDialog::new()
+                        .add_filter("JSON event", &["json"])
+                        .pick_file()
+                        .await
+                        .map(|file| file.path().to_path_buf());
+
+                    Message::EventFileLoaded(if let Some(path) = path {
+                        match tokio::fs::read_to_string(&path).await {
+                            Ok(content) => match serde_json::from_str::<NostrEvent>(&content) {
+                                Ok(event) => Ok(Some((path.to_string_lossy().to_string(), event))),
+                                Err(err) => Err(format!("Failed to parse JSON: {}", err)),
+                            },
+                            Err(err) => Err(format!("Failed to read file: {}", err)),
+                        }
+                    } else {
+                        Ok(None)
+                    })
+                }),
+                screen::sign::Action::Sign(slabel, event) => {
+                    Task::done(Message::RpcRequest(RpcRequest::SignEvent { slabel, event }))
+                }
+            },
+            Message::EventFileLoaded(result) => {
+                match result {
+                    Ok(Some(event_file)) => {
+                        self.sign_screen.set_event_file(event_file);
+                    }
+                    Ok(None) => {}
+                    Err(err) => self.sign_screen.set_error(err),
+                }
+                Task::none()
+            }
+            Message::EventFileSaved(result) => {
+                if let Err(err) = result {
+                    self.sign_screen.set_error(err);
+                }
+                Task::none()
+            }
         }
     }
 
@@ -1130,6 +1240,7 @@ impl App {
                     ),
                     navbar_button("Spaces", Icon::At, Route::Spaces, Screen::Spaces,),
                     navbar_button("Market", Icon::BuildingBank, Route::Market, Screen::Market,),
+                    navbar_button("Sign", Icon::Signature, Route::Sign, Screen::Sign,),
                 ]
                 .padding(10)
                 .spacing(5)
@@ -1162,6 +1273,10 @@ impl App {
                         .market_screen
                         .view(&wallet.owned_spaces)
                         .map(Message::MarketScreen),
+                    Screen::Sign => self
+                        .sign_screen
+                        .view(&wallet.owned_spaces)
+                        .map(Message::SignScreen),
                 })
                 .padding(20)
             ]

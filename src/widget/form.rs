@@ -1,8 +1,6 @@
 use iced::{
-    Background, Center, Element, Fill, Font, Shrink, Theme,
-    widget::{
-        Button, Column, Container, Text, TextInput, column, pick_list, text_editor,
-    },
+    Background, Border, Center, Element, Fill, Font, Shrink, Theme,
+    widget::{Button, Column, Container, Text, TextInput, button, column, pick_list, text_editor},
 };
 use std::borrow::Borrow;
 
@@ -112,12 +110,67 @@ impl<'a, Message: Clone + 'a> Form<'a, Message> {
                         let palette = theme.extended_palette();
                         pick_list::Style {
                             background: Background::Color(palette.background.base.color),
+                            border: Border {
+                                radius: 2.0.into(),
+                                width: 1.0,
+                                color: if status == pick_list::Status::Hovered {
+                                    palette.background.base.text
+                                } else {
+                                    palette.background.strong.color
+                                },
+                            },
                             ..pick_list::default(theme, status)
                         }
                     })
                     .font(Font::MONOSPACE)
                     .width(Fill)
                     .padding(10),
+            ]
+            .spacing(5)
+            .into(),
+        );
+        self
+    }
+
+    pub fn add_text_button(
+        mut self,
+        label: &'a str,
+        placeholder: &'a str,
+        value: &'a str,
+        on_press: Message,
+    ) -> Self {
+        self.elements.push(
+            column![
+                text_label(label),
+                button(Text::new(if value.is_empty() {
+                    placeholder
+                } else {
+                    value
+                }))
+                .style(move |theme: &Theme, status: button::Status| {
+                    let palette = theme.extended_palette();
+                    button::Style {
+                        border: Border {
+                            radius: 2.0.into(),
+                            width: 1.0,
+                            color: if status == button::Status::Hovered {
+                                palette.background.base.text
+                            } else {
+                                palette.background.strong.color
+                            },
+                        },
+                        text_color: if value.is_empty() {
+                            palette.background.strong.color
+                        } else {
+                            palette.background.base.text
+                        },
+                        background: Some(palette.background.base.color.into()),
+                        ..Default::default()
+                    }
+                })
+                .on_press(on_press)
+                .width(Fill)
+                .padding(10),
             ]
             .spacing(5)
             .into(),

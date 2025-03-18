@@ -6,6 +6,7 @@ pub enum Icon {
     ArrowBigUpLines,
     ArrowDownToArc,
     ArrowDownFromArc,
+    Signature,
     ChevronLeft,
     At,
 }
@@ -18,8 +19,9 @@ impl Icon {
             Icon::ArrowBigUpLines => '\u{E003}',
             Icon::ArrowDownToArc => '\u{E005}',
             Icon::ArrowDownFromArc => '\u{E006}',
-            Icon::ChevronLeft => '\u{E007}',
-            Icon::At => '\u{E008}',
+            Icon::Signature => '\u{E007}',
+            Icon::ChevronLeft => '\u{E008}',
+            Icon::At => '\u{E009}',
         }
     }
 }

@@ -5,6 +5,7 @@ pub use spaces_wallet::{
     Balance, Listing,
     bdk_wallet::serde::Deserialize,
     bitcoin::{Amount, Denomination, FeeRate, OutPoint},
+    nostr::NostrEvent,
     tx_event::{
         BidEventDetails, BidoutEventDetails, OpenEventDetails, SendEventDetails, TxEvent,
         TxEventKind,
