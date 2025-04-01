@@ -23,12 +23,12 @@ pub struct Client {
 #[derive(Debug, Clone)]
 pub enum ClientError {
     Call(String),
-    Global(String),
+    System(String),
 }
 fn convert_result<T>(result: Result<T, JsonClientError>) -> Result<T, ClientError> {
     result.map_err(|e| match e {
         JsonClientError::Call(e) => ClientError::Call (e.message().to_string()),
-        _ => ClientError::Global(e.to_string()),
+        _ => ClientError::System(e.to_string()),
     })
 }
 fn convert_result_error<T>(result: Result<T, JsonClientError>) -> Result<T, String> {
@@ -49,7 +49,7 @@ impl Client {
         convert_result_error(result)
     }
 
-    pub async fn get_space_info(&self, slabel: SLabel) -> Result<Option<FullSpaceOut>, String> {
+    pub async fn get_space_info(&self, slabel: &SLabel) -> Result<Option<FullSpaceOut>, String> {
         use spaces_client::store::Sha256;
         use spaces_protocol::hasher::KeyHasher;
         let hash = hex::encode(Sha256::hash(slabel.as_ref()));
@@ -89,7 +89,7 @@ impl Client {
         convert_result_error(result)
     }
 
-    pub async fn get_address(
+    pub async fn get_wallet_address(
         &self,
         wallet_name: &str,
         address_kind: AddressKind,
@@ -237,11 +237,11 @@ impl Client {
         convert_empty_result(result)
     }
 
-    pub async fn transfer_space(
+    pub async fn send_space(
         &self,
         wallet_name: &str,
-        slabel: SLabel,
         recipient: String,
+        slabel: SLabel,
         fee_rate: Option<FeeRate>,
     ) -> Result<(), ClientError> {
         let result = self

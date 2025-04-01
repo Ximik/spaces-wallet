@@ -100,7 +100,10 @@ impl State {
                 txid: self.txid.as_ref().unwrap().clone(),
                 fee_rate: fee_rate_from_str(&self.fee_rate).unwrap().unwrap(),
             },
-            Message::BumpFeeResult(Ok(())) => Action::GetTransactions,
+            Message::BumpFeeResult(Ok(())) => {
+                self.reset();
+                Action::GetTransactions
+            }
             Message::BumpFeeResult(Err(err)) => {
                 self.error = Some(err);
                 Action::None

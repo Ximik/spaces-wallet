@@ -47,6 +47,7 @@ pub enum Message {
     BidSubmit,
     RegisterSubmit,
     RenewSubmit,
+    ClientResult(Result<(), String>),
 }
 
 #[derive(Debug, Clone)]
@@ -74,6 +75,7 @@ pub enum Action {
         slabel: SLabel,
         fee_rate: Option<FeeRate>,
     },
+    ShowTransactions,
 }
 
 impl State {
@@ -163,6 +165,14 @@ impl State {
                 slabel: self.slabel.as_ref().unwrap().clone(),
                 fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
             },
+            Message::ClientResult(Ok(())) => {
+                self.reset_inputs();
+                Action::ShowTransactions
+            }
+            Message::ClientResult(Err(err)) => {
+                self.error = Some(err);
+                Action::None
+            }
         }
     }
 

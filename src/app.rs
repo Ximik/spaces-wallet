@@ -26,15 +26,17 @@ enum Route {
 enum Message {
     NavigateTo(Route),
     ClientError(String),
-    WalletLoad(Result<String, String>),
     ServerInfo(Result<ServerInfo, String>),
+    WalletLoad(Result<String, String>),
     WalletBalance(String, Result<Balance, String>),
     WalletSpaces(String, Result<ListSpacesResponse, String>),
     WalletTransactions(String, Result<Vec<TxInfo>, String>),
+    WalletAddress(String, AddressKind, Result<String, String>),
+    SpaceInfo(SLabel, Result<Option<FullSpaceOut>, String>),
     HomeScreen(screen::home::Message),
-    // SendScreen(screen::send::Message),
-    // ReceiveScreen(screen::receive::Message),
-    // SpacesScreen(screen::spaces::Message),
+    SendScreen(screen::send::Message),
+    ReceiveScreen(screen::receive::Message),
+    SpacesScreen(screen::spaces::Message),
     // MarketScreen(screen::market::Message),
     // SignScreen(screen::sign::Message),
 }
@@ -58,9 +60,9 @@ pub struct App {
     wallet: Option<WalletState>,
     spaces: SpacesState,
     home_screen: screen::home::State,
-    // send_screen: screen::send::State,
-    // receive_screen: screen::receive::State,
-    // spaces_screen: screen::spaces::State,
+    send_screen: screen::send::State,
+    receive_screen: screen::receive::State,
+    spaces_screen: screen::spaces::State,
     // market_screen: screen::market::State,
     // sign_screen: screen::sign::State,
 }
@@ -82,6 +84,10 @@ impl App {
             .run_with(move || Self::new(args))
     }
 
+    fn title(&self) -> String {
+        "Spaces Wallet".into()
+    }
+
     fn new(args: crate::Args) -> (Self, Task<Message>) {
         let client = Client::new(&args.spaced_rpc_url.unwrap());
         let app = Self {
@@ -92,9 +98,9 @@ impl App {
             wallet: None,
             spaces: Default::default(),
             home_screen: Default::default(),
-            // send_screen: Default::default(),
-            // receive_screen: Default::default(),
-            // spaces_screen: Default::default(),
+            send_screen: Default::default(),
+            receive_screen: Default::default(),
+            spaces_screen: Default::default(),
             // market_screen: Default::default(),
             // sign_screen: Default::default(),
         };
@@ -112,6 +118,7 @@ impl App {
                     let client = client.clone();
                     let wallet_name = args.wallet.to_string();
                     Task::future(async move {
+                        _ = client.create_wallet(&wallet_name).await;
                         let result = client.load_wallet(&wallet_name).await;
                         Message::WalletLoad(result.map(|_| wallet_name))
                     })
@@ -120,8 +127,49 @@ impl App {
         )
     }
 
-    fn title(&self) -> String {
-        "Spaces Wallet".into()
+    fn get_wallet_balance(&self) -> Task<Message> {
+        let client = self.client.clone();
+        let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+        Task::future(async move {
+            let result = client.get_wallet_balance(&wallet_name).await;
+            Message::WalletBalance(wallet_name, result)
+        })
+    }
+
+    fn get_wallet_spaces(&self) -> Task<Message> {
+        let client = self.client.clone();
+        let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+        Task::future(async move {
+            let result = client.get_wallet_spaces(&wallet_name).await;
+            Message::WalletSpaces(wallet_name, result)
+        })
+    }
+
+    fn get_wallet_transactions(&self) -> Task<Message> {
+        let client = self.client.clone();
+        let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+        let count = self.home_screen.get_transactions_limit();
+        Task::future(async move {
+            let result = client.get_wallet_transactions(&wallet_name, count).await;
+            Message::WalletTransactions(wallet_name, result)
+        })
+    }
+
+    fn get_wallet_address(&self, address_kind: AddressKind) -> Task<Message> {
+        let client = self.client.clone();
+        let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+        Task::future(async move {
+            let result = client.get_wallet_address(&wallet_name, address_kind).await;
+            Message::WalletAddress(wallet_name, address_kind, result)
+        })
+    }
+
+    fn get_space_info(&self, slabel: SLabel) -> Task<Message> {
+        let client = self.client.clone();
+        Task::future(async move {
+            let result = client.get_space_info(&slabel).await;
+            Message::SpaceInfo(slabel, result)
+        })
     }
 
     fn navigate_to(&mut self, route: Route) -> Task<Message> {
@@ -132,68 +180,41 @@ impl App {
                 } else {
                     self.screen = Screen::Home;
                 }
-                let wallet_name: String = self.wallet.as_ref().unwrap().name.clone();
                 Task::batch([
-                    {
-                        let client = self.client.clone();
-                        let wallet_name = wallet_name.clone();
-                        Task::future(async move {
-                            let result = client.get_wallet_balance(&wallet_name).await;
-                            Message::WalletBalance(wallet_name, result)
-                        })
-                    },
-                    {
-                        let client = self.client.clone();
-                        let wallet_name = wallet_name.clone();
-                        Task::future(async move {
-                            let result = client.get_wallet_spaces(&wallet_name).await;
-                            Message::WalletSpaces(wallet_name, result)
-                        })
-                    },
-                    {
-                        let client = self.client.clone();
-                        let wallet_name = wallet_name.clone();
-                        let count = self.home_screen.get_transactions_limit();
-                        Task::future(async move {
-                            let result = client.get_wallet_transactions(&wallet_name, count).await;
-                            Message::WalletTransactions(wallet_name, result)
-                        })
-                    },
+                    self.get_wallet_balance(),
+                    self.get_wallet_spaces(),
+                    self.get_wallet_transactions(),
                 ])
             }
+            Route::Send => {
+                self.screen = Screen::Send;
+                self.get_wallet_spaces()
+            }
+            Route::Receive => {
+                self.screen = Screen::Receive;
+                Task::batch([
+                    self.get_wallet_address(AddressKind::Coin),
+                    self.get_wallet_address(AddressKind::Space),
+                ])
+            }
+            Route::Spaces => {
+                if self.screen == Screen::Spaces {
+                    self.spaces_screen.reset();
+                } else {
+                    self.screen = Screen::Spaces;
+                }
+                if let Some(slabel) = self.spaces_screen.get_slabel() {
+                    self.get_space_info(slabel)
+                } else {
+                    self.get_wallet_spaces()
+                }
+            }
+            Route::Space(slabel) => {
+                self.screen = Screen::Spaces;
+                self.spaces_screen.set_slabel(&slabel);
+                self.get_space_info(slabel)
+            }
             _ => unimplemented!(),
-            // Route::Send => {
-            //     self.screen = Screen::Send;
-            //     Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces))
-            // }
-            // Route::Receive => {
-            //     self.screen = Screen::Receive;
-            //     Task::batch([
-            //         Task::done(Message::RpcRequest(RpcRequest::GetAddress {
-            //             address_kind: AddressKind::Coin,
-            //         })),
-            //         Task::done(Message::RpcRequest(RpcRequest::GetAddress {
-            //             address_kind: AddressKind::Space,
-            //         })),
-            //     ])
-            // }
-            // Route::Spaces => {
-            //     if self.screen == Screen::Spaces {
-            //         self.spaces_screen.reset();
-            //     } else {
-            //         self.screen = Screen::Spaces;
-            //     }
-            //     if let Some(slabel) = self.spaces_screen.get_slabel() {
-            //         Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
-            //     } else {
-            //         Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces))
-            //     }
-            // }
-            // Route::Space(slabel) => {
-            //     self.screen = Screen::Spaces;
-            //     self.spaces_screen.set_slabel(&slabel);
-            //     Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
-            // }
             // Route::Market => {
             //     self.screen = Screen::Market;
             //     Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces))
@@ -285,6 +306,30 @@ impl App {
                 }
                 Task::none()
             }
+            Message::WalletAddress(wallet_name, address_kind, result) => {
+                if let Some(wallet_state) = self.wallet.as_mut() {
+                    if wallet_state.name == wallet_name {
+                        match result {
+                            Ok(address) => {
+                                let address = Some(AddressState::new(address));
+                                match address_kind {
+                                    AddressKind::Coin => wallet_state.coin_address = address,
+                                    AddressKind::Space => wallet_state.space_address = address,
+                                }
+                            }
+                            Err(err) => return self.set_client_error(err),
+                        }
+                    }
+                }
+                Task::none()
+            }
+            Message::SpaceInfo(slabel, result) => {
+                match result {
+                    Ok(out) => self.spaces.insert(slabel, out),
+                    Err(err) => return self.set_client_error(err),
+                }
+                Task::none()
+            }
             Message::HomeScreen(message) => match self.home_screen.update(message) {
                 screen::home::Action::WriteClipboard(s) => clipboard::write(s),
                 screen::home::Action::ShowSpace { slabel } => {
@@ -311,74 +356,148 @@ impl App {
                             Err(ClientError::Call(err)) => {
                                 Message::HomeScreen(screen::home::Message::BumpFeeResult(Err(err)))
                             }
-                            Err(ClientError::Global(err)) => Message::ClientError(err),
+                            Err(ClientError::System(err)) => Message::ClientError(err),
                         }
                     })
                 }
                 screen::home::Action::None => Task::none(),
             },
-            // Message::SendScreen(message) => match self.send_screen.update(message) {
-            //     screen::send::Action::SendCoins {
-            //         recipient,
-            //         amount,
-            //         fee_rate,
-            //     } => Task::done(Message::RpcRequest(RpcRequest::SendCoins {
-            //         recipient,
-            //         amount,
-            //         fee_rate,
-            //     })),
-            //     screen::send::Action::SendSpace {
-            //         recipient,
-            //         slabel,
-            //         fee_rate,
-            //     } => Task::done(Message::RpcRequest(RpcRequest::TransferSpace {
-            //         slabel,
-            //         recipient,
-            //         fee_rate,
-            //     })),
-            //     screen::send::Action::None => Task::none(),
-            // },
-            // Message::ReceiveScreen(message) => match self.receive_screen.update(message) {
-            //     screen::receive::Action::WriteClipboard(s) => clipboard::write(s),
-            //     screen::receive::Action::None => Task::none(),
-            // },
-            // Message::SpacesScreen(message) => match self.spaces_screen.update(message) {
-            //     screen::spaces::Action::WriteClipboard(s) => clipboard::write(s),
-            //     screen::spaces::Action::GetSpaceInfo { slabel } => {
-            //         Task::done(Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel }))
-            //     }
-            //     screen::spaces::Action::OpenSpace {
-            //         slabel,
-            //         amount,
-            //         fee_rate,
-            //     } => Task::done(Message::RpcRequest(RpcRequest::OpenSpace {
-            //         slabel,
-            //         amount,
-            //         fee_rate,
-            //     })),
-            //     screen::spaces::Action::BidSpace {
-            //         slabel,
-            //         amount,
-            //         fee_rate,
-            //     } => Task::done(Message::RpcRequest(RpcRequest::BidSpace {
-            //         slabel,
-            //         amount,
-            //         fee_rate,
-            //     })),
-            //     screen::spaces::Action::RegisterSpace { slabel, fee_rate } => {
-            //         Task::done(Message::RpcRequest(RpcRequest::RegisterSpace {
-            //             slabel,
-            //             fee_rate,
-            //         }))
-            //     }
-            //     screen::spaces::Action::RenewSpace { slabel, fee_rate } => {
-            //         Task::done(Message::RpcRequest(RpcRequest::RenewSpace {
-            //             slabel,
-            //             fee_rate,
-            //         }))
-            //     }
-            //     screen::spaces::Action::None => Task::none(),
-            // },
+            Message::SendScreen(message) => match self.send_screen.update(message) {
+                screen::send::Action::SendCoins {
+                    recipient,
+                    amount,
+                    fee_rate,
+                } => {
+                    let client = self.client.clone();
+                    let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+                    Task::future(async move {
+                        let result = client
+                            .send_coins(&wallet_name, recipient, amount, fee_rate)
+                            .await;
+                        match result {
+                            Ok(()) => {
+                                Message::SendScreen(screen::send::Message::ClientResult(Ok(())))
+                            }
+                            Err(ClientError::Call(err)) => {
+                                Message::SendScreen(screen::send::Message::ClientResult(Err(err)))
+                            }
+                            Err(ClientError::System(err)) => Message::ClientError(err),
+                        }
+                    })
+                }
+                screen::send::Action::SendSpace {
+                    recipient,
+                    slabel,
+                    fee_rate,
+                } => {
+                    let client = self.client.clone();
+                    let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+                    Task::future(async move {
+                        let result = client
+                            .send_space(&wallet_name, recipient, slabel, fee_rate)
+                            .await;
+                        match result {
+                            Ok(()) => {
+                                Message::SendScreen(screen::send::Message::ClientResult(Ok(())))
+                            }
+                            Err(ClientError::Call(err)) => {
+                                Message::SendScreen(screen::send::Message::ClientResult(Err(err)))
+                            }
+                            Err(ClientError::System(err)) => Message::ClientError(err),
+                        }
+                    })
+                }
+                screen::send::Action::ShowTransactions => self.navigate_to(Route::Home),
+                screen::send::Action::None => Task::none(),
+            },
+            Message::ReceiveScreen(message) => match self.receive_screen.update(message) {
+                screen::receive::Action::WriteClipboard(s) => clipboard::write(s),
+                screen::receive::Action::None => Task::none(),
+            },
+            Message::SpacesScreen(message) => match self.spaces_screen.update(message) {
+                screen::spaces::Action::WriteClipboard(s) => clipboard::write(s),
+                screen::spaces::Action::GetSpaceInfo { slabel } => self.get_space_info(slabel),
+                screen::spaces::Action::OpenSpace {
+                    slabel,
+                    amount,
+                    fee_rate,
+                } => {
+                    let client = self.client.clone();
+                    let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+                    Task::future(async move {
+                        let result = client
+                            .open_space(&wallet_name, slabel, amount, fee_rate)
+                            .await;
+                        match result {
+                            Ok(()) => {
+                                Message::SpacesScreen(screen::spaces::Message::ClientResult(Ok(())))
+                            }
+                            Err(ClientError::Call(err)) => Message::SpacesScreen(
+                                screen::spaces::Message::ClientResult(Err(err)),
+                            ),
+                            Err(ClientError::System(err)) => Message::ClientError(err),
+                        }
+                    })
+                }
+                screen::spaces::Action::BidSpace {
+                    slabel,
+                    amount,
+                    fee_rate,
+                } => {
+                    let client = self.client.clone();
+                    let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+                    Task::future(async move {
+                        let result = client
+                            .bid_space(&wallet_name, slabel, amount, fee_rate)
+                            .await;
+                        match result {
+                            Ok(()) => {
+                                Message::SpacesScreen(screen::spaces::Message::ClientResult(Ok(())))
+                            }
+                            Err(ClientError::Call(err)) => Message::SpacesScreen(
+                                screen::spaces::Message::ClientResult(Err(err)),
+                            ),
+                            Err(ClientError::System(err)) => Message::ClientError(err),
+                        }
+                    })
+                }
+                screen::spaces::Action::RegisterSpace { slabel, fee_rate } => {
+                    let client = self.client.clone();
+                    let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+                    Task::future(async move {
+                        let result: Result<(), ClientError> =
+                            client.register_space(&wallet_name, slabel, fee_rate).await;
+                        match result {
+                            Ok(()) => {
+                                Message::SpacesScreen(screen::spaces::Message::ClientResult(Ok(())))
+                            }
+                            Err(ClientError::Call(err)) => Message::SpacesScreen(
+                                screen::spaces::Message::ClientResult(Err(err)),
+                            ),
+                            Err(ClientError::System(err)) => Message::ClientError(err),
+                        }
+                    })
+                }
+                screen::spaces::Action::RenewSpace { slabel, fee_rate } => {
+                    let client = self.client.clone();
+                    let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+                    Task::future(async move {
+                        let result: Result<(), ClientError> =
+                            client.register_space(&wallet_name, slabel, fee_rate).await;
+                        match result {
+                            Ok(()) => {
+                                Message::SpacesScreen(screen::spaces::Message::ClientResult(Ok(())))
+                            }
+                            Err(ClientError::Call(err)) => Message::SpacesScreen(
+                                screen::spaces::Message::ClientResult(Err(err)),
+                            ),
+                            Err(ClientError::System(err)) => Message::ClientError(err),
+                        }
+                    })
+                }
+                screen::spaces::Action::ShowTransactions => self.navigate_to(Route::Home),
+                screen::spaces::Action::None => Task::none(),
+            },
             // Message::MarketScreen(message) => match self.market_screen.update(message) {
             //     screen::market::Action::None => Task::none(),
             //     screen::market::Action::Buy { listing, fee_rate } => {
@@ -476,25 +595,25 @@ impl App {
                         .home_screen
                         .view(self.tip_height, wallet.balance, &wallet.transactions)
                         .map(Message::HomeScreen),
+                    Screen::Send => self
+                        .send_screen
+                        .view(&wallet.owned_spaces)
+                        .map(Message::SendScreen),
+                    Screen::Receive => self
+                        .receive_screen
+                        .view(wallet.coin_address.as_ref(), wallet.space_address.as_ref(),)
+                        .map(Message::ReceiveScreen),
+                    Screen::Spaces => self
+                        .spaces_screen
+                        .view(
+                            self.tip_height,
+                            &self.spaces,
+                            &wallet.winning_spaces,
+                            &wallet.outbid_spaces,
+                            &wallet.owned_spaces
+                        )
+                        .map(Message::SpacesScreen),
                     _ => unimplemented!(),
-                    // Screen::Send => self
-                    //     .send_screen
-                    //     .view(&wallet.owned_spaces)
-                    //     .map(Message::SendScreen),
-                    // Screen::Receive => self
-                    //     .receive_screen
-                    //     .view(wallet.coin_address.as_ref(), wallet.space_address.as_ref(),)
-                    //     .map(Message::ReceiveScreen),
-                    // Screen::Spaces => self
-                    //     .spaces_screen
-                    //     .view(
-                    //         self.tip_height,
-                    //         &self.spaces,
-                    //         &wallet.winning_spaces,
-                    //         &wallet.outbid_spaces,
-                    //         &wallet.owned_spaces
-                    //     )
-                    //     .map(Message::SpacesScreen),
                     // Screen::Market => self
                     //     .market_screen
                     //     .view(&wallet.owned_spaces)
