@@ -79,10 +79,6 @@ pub enum Action {
 }
 
 impl State {
-    pub fn set_error(&mut self, error: String) {
-        self.error = Some(error)
-    }
-
     pub fn reset_inputs(&mut self) {
         self.amount = Default::default();
         self.fee_rate = Default::default();

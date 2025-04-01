@@ -24,6 +24,7 @@ enum Route {
 
 #[derive(Debug, Clone)]
 enum Message {
+    Tick,
     NavigateTo(Route),
     ClientError(String),
     ServerInfo(Result<ServerInfo, String>),
@@ -37,8 +38,8 @@ enum Message {
     SendScreen(screen::send::Message),
     ReceiveScreen(screen::receive::Message),
     SpacesScreen(screen::spaces::Message),
-    // MarketScreen(screen::market::Message),
-    // SignScreen(screen::sign::Message),
+    MarketScreen(screen::market::Message),
+    SignScreen(screen::sign::Message),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -63,8 +64,8 @@ pub struct App {
     send_screen: screen::send::State,
     receive_screen: screen::receive::State,
     spaces_screen: screen::spaces::State,
-    // market_screen: screen::market::State,
-    // sign_screen: screen::sign::State,
+    market_screen: screen::market::State,
+    sign_screen: screen::sign::State,
 }
 
 impl App {
@@ -101,30 +102,30 @@ impl App {
             send_screen: Default::default(),
             receive_screen: Default::default(),
             spaces_screen: Default::default(),
-            // market_screen: Default::default(),
-            // sign_screen: Default::default(),
+            market_screen: Default::default(),
+            sign_screen: Default::default(),
         };
+        let get_server_info = app.get_server_info();
         (
             app,
-            Task::batch([
-                {
-                    let client = client.clone();
-                    Task::future(async move {
-                        let result = client.get_server_info().await;
-                        Message::ServerInfo(result)
-                    })
-                },
-                {
-                    let client = client.clone();
-                    let wallet_name = args.wallet.to_string();
-                    Task::future(async move {
-                        _ = client.create_wallet(&wallet_name).await;
-                        let result = client.load_wallet(&wallet_name).await;
-                        Message::WalletLoad(result.map(|_| wallet_name))
-                    })
-                },
-            ]),
+            Task::batch([get_server_info, {
+                let client = client.clone();
+                let wallet_name = args.wallet.to_string();
+                Task::future(async move {
+                    _ = client.create_wallet(&wallet_name).await;
+                    let result = client.load_wallet(&wallet_name).await;
+                    Message::WalletLoad(result.map(|_| wallet_name))
+                })
+            }]),
         )
+    }
+
+    fn get_server_info(&self) -> Task<Message> {
+        let client = self.client.clone();
+        Task::future(async move {
+            let result = client.get_server_info().await;
+            Message::ServerInfo(result)
+        })
     }
 
     fn get_wallet_balance(&self) -> Task<Message> {
@@ -214,15 +215,14 @@ impl App {
                 self.spaces_screen.set_slabel(&slabel);
                 self.get_space_info(slabel)
             }
-            _ => unimplemented!(),
-            // Route::Market => {
-            //     self.screen = Screen::Market;
-            //     Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces))
-            // }
-            // Route::Sign => {
-            //     self.screen = Screen::Sign;
-            //     Task::done(Message::RpcRequest(RpcRequest::GetWalletSpaces))
-            // }
+            Route::Market => {
+                self.screen = Screen::Market;
+                self.get_wallet_spaces()
+            }
+            Route::Sign => {
+                self.screen = Screen::Sign;
+                self.get_wallet_spaces()
+            }
         }
     }
 
@@ -238,6 +238,25 @@ impl App {
 
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
+            Message::Tick => {
+                let mut tasks = vec![self.get_server_info()];
+                if self.wallet.is_some() {
+                    match self.screen {
+                        Screen::Home => {
+                            tasks.push(self.get_wallet_balance());
+                            tasks.push(self.get_wallet_transactions());
+                        }
+                        Screen::Spaces => {
+                            tasks.push(self.get_wallet_spaces());
+                            if let Some(slabel) = self.spaces_screen.get_slabel() {
+                                tasks.push(self.get_space_info(slabel));
+                            }
+                        }
+                        _ => {}
+                    }
+                }
+                Task::batch(tasks)
+            }
             Message::NavigateTo(route) => self.navigate_to(route),
             Message::ClientError(err) => self.set_client_error(err),
             Message::WalletLoad(result) => match result {
@@ -465,8 +484,7 @@ impl App {
                     let client = self.client.clone();
                     let wallet_name = self.wallet.as_ref().unwrap().name.clone();
                     Task::future(async move {
-                        let result: Result<(), ClientError> =
-                            client.register_space(&wallet_name, slabel, fee_rate).await;
+                        let result = client.register_space(&wallet_name, slabel, fee_rate).await;
                         match result {
                             Ok(()) => {
                                 Message::SpacesScreen(screen::spaces::Message::ClientResult(Ok(())))
@@ -482,8 +500,7 @@ impl App {
                     let client = self.client.clone();
                     let wallet_name = self.wallet.as_ref().unwrap().name.clone();
                     Task::future(async move {
-                        let result: Result<(), ClientError> =
-                            client.register_space(&wallet_name, slabel, fee_rate).await;
+                        let result = client.renew_space(&wallet_name, slabel, fee_rate).await;
                         match result {
                             Ok(()) => {
                                 Message::SpacesScreen(screen::spaces::Message::ClientResult(Ok(())))
@@ -498,60 +515,99 @@ impl App {
                 screen::spaces::Action::ShowTransactions => self.navigate_to(Route::Home),
                 screen::spaces::Action::None => Task::none(),
             },
-            // Message::MarketScreen(message) => match self.market_screen.update(message) {
-            //     screen::market::Action::None => Task::none(),
-            //     screen::market::Action::Buy { listing, fee_rate } => {
-            //         Task::done(Message::RpcRequest(RpcRequest::BuySpace {
-            //             listing,
-            //             fee_rate,
-            //         }))
-            //     }
-            //     screen::market::Action::Sell { slabel, price } => {
-            //         Task::done(Message::RpcRequest(RpcRequest::SellSpace { slabel, price }))
-            //     }
-            //     screen::market::Action::WriteClipboard(s) => clipboard::write(s),
-            // },
-            // Message::SignScreen(message) => match self.sign_screen.update(message) {
-            //     screen::sign::Action::None => Task::none(),
-            //     screen::sign::Action::FilePick => Task::future(async move {
-            //         let path = rfd::AsyncFileDialog::new()
-            //             .add_filter("JSON event", &["json"])
-            //             .pick_file()
-            //             .await
-            //             .map(|file| file.path().to_path_buf());
+            Message::MarketScreen(message) => match self.market_screen.update(message) {
+                screen::market::Action::Buy { listing, fee_rate } => {
+                    let client = self.client.clone();
+                    let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+                    Task::future(async move {
+                        let result = client.buy_space(&wallet_name, listing, fee_rate).await;
+                        match result {
+                            Ok(()) => {
+                                Message::MarketScreen(screen::market::Message::BuyResult(Ok(())))
+                            }
+                            Err(ClientError::Call(err)) => {
+                                Message::MarketScreen(screen::market::Message::BuyResult(Err(err)))
+                            }
+                            Err(ClientError::System(err)) => Message::ClientError(err),
+                        }
+                    })
+                }
+                screen::market::Action::Sell { slabel, price } => {
+                    let client = self.client.clone();
+                    let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+                    Task::future(async move {
+                        let result = client.sell_space(&wallet_name, slabel, price).await;
+                        match result {
+                            Ok(listing) => Message::MarketScreen(
+                                screen::market::Message::SellResult(Ok(listing)),
+                            ),
+                            Err(ClientError::Call(err)) => {
+                                Message::MarketScreen(screen::market::Message::SellResult(Err(err)))
+                            }
+                            Err(ClientError::System(err)) => Message::ClientError(err),
+                        }
+                    })
+                }
+                screen::market::Action::WriteClipboard(s) => clipboard::write(s),
+                screen::market::Action::ShowTransactions => self.navigate_to(Route::Home),
+                screen::market::Action::None => Task::none(),
+            },
+            Message::SignScreen(message) => match self.sign_screen.update(message) {
+                screen::sign::Action::FilePick => Task::future(async move {
+                    let path = rfd::AsyncFileDialog::new()
+                        .add_filter("JSON event", &["json"])
+                        .pick_file()
+                        .await
+                        .map(|file| file.path().to_path_buf());
 
-            //         Message::EventFileLoaded(if let Some(path) = path {
-            //             match tokio::fs::read_to_string(&path).await {
-            //                 Ok(content) => match serde_json::from_str::<NostrEvent>(&content) {
-            //                     Ok(event) => Ok(Some((path.to_string_lossy().to_string(), event))),
-            //                     Err(err) => Err(format!("Failed to parse JSON: {}", err)),
-            //                 },
-            //                 Err(err) => Err(format!("Failed to read file: {}", err)),
-            //             }
-            //         } else {
-            //             Ok(None)
-            //         })
-            //     }),
-            //     screen::sign::Action::Sign(slabel, event) => {
-            //         Task::done(Message::RpcRequest(RpcRequest::SignEvent { slabel, event }))
-            //     }
-            // },
-            // Message::EventFileLoaded(result) => {
-            //     match result {
-            //         Ok(Some(event_file)) => {
-            //             self.sign_screen.set_event_file(event_file);
-            //         }
-            //         Ok(None) => {}
-            //         Err(err) => self.sign_screen.set_error(err),
-            //     }
-            //     Task::none()
-            // }
-            // Message::EventFileSaved(result) => {
-            //     if let Err(err) = result {
-            //         self.sign_screen.set_error(err);
-            //     }
-            //     Task::none()
-            // }
+                    use spaces_wallet::bdk_wallet::serde_json;
+                    let result = if let Some(path) = path {
+                        match tokio::fs::read_to_string(&path).await {
+                            Ok(content) => match serde_json::from_str::<NostrEvent>(&content) {
+                                Ok(event) => Ok(Some((path.to_string_lossy().to_string(), event))),
+                                Err(err) => Err(format!("Failed to parse JSON: {}", err)),
+                            },
+                            Err(err) => Err(format!("Failed to read file: {}", err)),
+                        }
+                    } else {
+                        Ok(None)
+                    };
+                    Message::SignScreen(screen::sign::Message::EventFileLoaded(result))
+                }),
+                screen::sign::Action::Sign(slabel, event) => {
+                    let client = self.client.clone();
+                    let wallet_name = self.wallet.as_ref().unwrap().name.clone();
+                    Task::future(async move {
+                        let result = client.sign_event(&wallet_name, slabel, event).await;
+                        match result {
+                            Ok(event) => {
+                                let file_path = rfd::AsyncFileDialog::new()
+                                    .add_filter("JSON event", &["json"])
+                                    .add_filter("All files", &["*"])
+                                    .save_file()
+                                    .await
+                                    .map(|file| file.path().to_path_buf());
+
+                                let result = if let Some(file_path) = file_path {
+                                    use spaces_wallet::bdk_wallet::serde_json;
+                                    let contents = serde_json::to_vec(&event).unwrap();
+                                    tokio::fs::write(&file_path, contents)
+                                        .await
+                                        .map_err(|e| e.to_string())
+                                } else {
+                                    Ok(())
+                                };
+                                Message::SignScreen(screen::sign::Message::EventFileSaved(result))
+                            }
+                            Err(ClientError::Call(err)) => {
+                                Message::SignScreen(screen::sign::Message::EventFileSaved(Err(err)))
+                            }
+                            Err(ClientError::System(err)) => Message::ClientError(err),
+                        }
+                    })
+                }
+                screen::sign::Action::None => Task::none(),
+            },
         }
     }
 
@@ -613,15 +669,14 @@ impl App {
                             &wallet.owned_spaces
                         )
                         .map(Message::SpacesScreen),
-                    _ => unimplemented!(),
-                    // Screen::Market => self
-                    //     .market_screen
-                    //     .view(&wallet.owned_spaces)
-                    //     .map(Message::MarketScreen),
-                    // Screen::Sign => self
-                    //     .sign_screen
-                    //     .view(&wallet.owned_spaces)
-                    //     .map(Message::SignScreen),
+                    Screen::Market => self
+                        .market_screen
+                        .view(&wallet.owned_spaces)
+                        .map(Message::MarketScreen),
+                    Screen::Sign => self
+                        .sign_screen
+                        .view(&wallet.owned_spaces)
+                        .map(Message::SignScreen),
                 })
                 .padding(20)
             ]
@@ -633,43 +688,11 @@ impl App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        // if self.wallet.is_some() && self.client_error.is_none() {
-        //     let mut subscriptions = vec![
-        //         time::every(time::Duration::from_secs(30))
-        //             .map(|_| Message::RpcRequest(RpcRequest::GetServerInfo)),
-        //     ];
-        //     match self.screen {
-        //         Screen::Home => {
-        //             subscriptions.push(
-        //                 time::every(time::Duration::from_secs(30))
-        //                     .map(|_| Message::RpcRequest(RpcRequest::GetBalance)),
-        //             );
-        //             subscriptions.push(
-        //                 time::every(time::Duration::from_secs(30))
-        //                     .map(|_| Message::RpcRequest(RpcRequest::GetTransactions)),
-        //             );
-        //         }
-        //         Screen::Spaces => {
-        //             subscriptions.push(
-        //                 time::every(time::Duration::from_secs(30))
-        //                     .map(|_| Message::RpcRequest(RpcRequest::GetWalletSpaces)),
-        //             );
-        //             if let Some(slabel) = self.spaces_screen.get_slabel() {
-        //                 subscriptions.push(
-        //                     time::every(time::Duration::from_secs(30)).with(slabel).map(
-        //                         |(slabel, _)| {
-        //                             Message::RpcRequest(RpcRequest::GetSpaceInfo { slabel })
-        //                         },
-        //                     ),
-        //                 );
-        //             }
-        //         }
-        //         _ => {}
-        //     }
-        //     Subscription::batch(subscriptions)
-        // } else {
-        //     Subscription::none()
-        // }
-        Subscription::none()
+        time::every(if self.wallet.is_some() && self.client_error.is_none() {
+            time::Duration::from_secs(30)
+        } else {
+            time::Duration::from_secs(5)
+        })
+        .map(|_| Message::Tick)
     }
 }

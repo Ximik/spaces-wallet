@@ -62,10 +62,6 @@ pub enum Action {
 }
 
 impl State {
-    pub fn set_error(&mut self, message: String) {
-        self.error = Some(message);
-    }
-
     pub fn reset_inputs(&mut self) {
         self.recipient = Default::default();
         self.amount = Default::default();
