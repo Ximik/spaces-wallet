@@ -49,7 +49,9 @@ pub enum Message {
     SLabelSelect(SLabel),
     PriceInput(String),
     BuySubmit,
+    BuyResult(Result<(), String>),
     SellSubmit,
+    SellResult(Result<Listing, String>),
     CopyPress,
 }
 
@@ -65,6 +67,7 @@ pub enum Action {
         price: Amount,
     },
     WriteClipboard(String),
+    ShowTransactions,
 }
 
 impl State {
@@ -79,24 +82,6 @@ impl State {
         match self {
             Self::Sell(state) => state,
             _ => panic!("Expected Sell state"),
-        }
-    }
-
-    pub fn set_buy_error(&mut self, error: String) {
-        if let Self::Buy(state) = self {
-            state.error = Some(error);
-        }
-    }
-
-    pub fn set_sell_error(&mut self, error: String) {
-        if let Self::Sell(state) = self {
-            state.error = Some(error);
-        }
-    }
-
-    pub fn set_sell_listing(&mut self, value: Listing) {
-        if let Self::Sell(state) = self {
-            state.listing = Some(serde_json::to_string_pretty(&value).unwrap());
         }
     }
 
@@ -141,12 +126,33 @@ impl State {
                     fee_rate: fee_rate_from_str(&state.fee_rate).unwrap(),
                 }
             }
+            Message::BuyResult(Ok(())) => {
+                Action::ShowTransactions
+            }
+            Message::BuyResult(Err(err)) => {
+                if let Self::Buy(state) = self {
+                    state.error = Some(err);
+                }
+                Action::None
+            }
             Message::SellSubmit => {
                 let state = self.as_sell();
                 Action::Sell {
                     slabel: state.space.clone().unwrap(),
                     price: amount_from_str(&state.price).unwrap(),
                 }
+            }
+            Message::SellResult(Ok(value)) => {
+                if let Self::Sell(state) = self {
+                    state.listing = Some(serde_json::to_string_pretty(&value).unwrap());
+                }
+                Action::None
+            }
+            Message::SellResult(Err(err)) => {
+                if let Self::Sell(state) = self {
+                    state.error = Some(err);
+                }
+                Action::None
             }
             Message::CopyPress => Action::WriteClipboard(self.as_sell().listing.clone().unwrap()),
         }

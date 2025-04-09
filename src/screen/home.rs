@@ -3,16 +3,16 @@ use crate::{
     types::*,
     widget::{
         form::Form,
-        icon::{button_icon, text_icon, Icon},
+        icon::{Icon, button_icon, text_icon},
         text::{error_block, text_big, text_bold, text_monospace, text_monospace_bold, text_small},
     },
 };
 use iced::{
-    widget::{
-        button, center, column, container, horizontal_rule, horizontal_space, row, scrollable,
-        text, Column, Row, Space,
-    },
     Border, Center, Element, Fill, FillPortion, Theme,
+    widget::{
+        Column, Row, Space, button, center, column, container, horizontal_rule, horizontal_space,
+        row, scrollable, text,
+    },
 };
 
 #[derive(Debug)]
@@ -43,6 +43,7 @@ pub enum Message {
     TxsListScrolled(f32, usize),
     FeeRateInput(String),
     BumpFeeSubmit,
+    BumpFeeResult(Result<(), String>),
 }
 
 #[derive(Debug, Clone)]
@@ -55,10 +56,6 @@ pub enum Action {
 }
 
 impl State {
-    pub fn set_error(&mut self, error: String) {
-        self.error = Some(error)
-    }
-
     pub fn reset_inputs(&mut self) {
         self.fee_rate = String::new();
     }
@@ -103,6 +100,14 @@ impl State {
                 txid: self.txid.as_ref().unwrap().clone(),
                 fee_rate: fee_rate_from_str(&self.fee_rate).unwrap().unwrap(),
             },
+            Message::BumpFeeResult(Ok(())) => {
+                self.reset();
+                Action::GetTransactions
+            }
+            Message::BumpFeeResult(Err(err)) => {
+                self.error = Some(err);
+                Action::None
+            }
         }
     }
 
@@ -328,17 +333,13 @@ impl State {
                                     .iter()
                                     .any(|event| event.kind == TxEventKind::FeeBump);
 
-                                let tx_data_without_event =
-                                    || -> Row<'a, Message> {
-                                        let diff = transaction.received.to_sat() as i64
-                                            - transaction.sent.to_sat() as i64;
-                                        row![
-                                            horizontal_space(),
-                                            if diff >= 0 {
-                                                text(format!(
-                                                    "+{}",
-                                                    format_amount_number(diff as u64)
-                                                ))
+                                let tx_data_without_event = || -> Row<'a, Message> {
+                                    let diff = transaction.received.to_sat() as i64
+                                        - transaction.sent.to_sat() as i64;
+                                    row![
+                                        horizontal_space(),
+                                        if diff >= 0 {
+                                            text(format!("+{}", format_amount_number(diff as u64)))
                                                 .style(move |theme: &Theme| text::Style {
                                                     color: Some(
                                                         theme
@@ -348,11 +349,8 @@ impl State {
                                                             .color,
                                                     ),
                                                 })
-                                            } else {
-                                                text(format!(
-                                                    "-{}",
-                                                    format_amount_number(-diff as u64)
-                                                ))
+                                        } else {
+                                            text(format!("-{}", format_amount_number(-diff as u64)))
                                                 .style(move |theme: &Theme| text::Style {
                                                     color: Some(
                                                         theme
@@ -362,9 +360,9 @@ impl State {
                                                             .color,
                                                     ),
                                                 })
-                                            }
-                                        ]
-                                    };
+                                        }
+                                    ]
+                                };
 
                                 let tx_data_with_event =
                                     |action: &'static str,
@@ -381,9 +379,7 @@ impl State {
                                             horizontal_space()
                                         ]
                                         .push_maybe(
-                                            amount.map(|amount| {
-                                                text(format_amount(amount))
-                                            }),
+                                            amount.map(|amount| text(format_amount(amount))),
                                         )
                                         .spacing(5)
                                         .align_y(Center)

@@ -19,6 +19,8 @@ pub enum Message {
     SLabelSelect(SLabel),
     PathPress,
     SignSubmit,
+    EventFileLoaded(Result<Option<(String, NostrEvent)>, String>),
+    EventFileSaved(Result<(), String>),
 }
 
 #[derive(Debug, Clone)]
@@ -29,14 +31,6 @@ pub enum Action {
 }
 
 impl State {
-    pub fn set_error(&mut self, error: String) {
-        self.error = Some(error);
-    }
-
-    pub fn set_event_file(&mut self, event: (String, NostrEvent)) {
-        self.event = Some(event);
-    }
-
     pub fn update(&mut self, message: Message) -> Action {
         self.error = None;
         match message {
@@ -49,6 +43,22 @@ impl State {
                 self.slabel.as_ref().unwrap().clone(),
                 self.event.as_ref().unwrap().1.clone(),
             ),
+            Message::EventFileLoaded(result) => {
+                match result {
+                    Ok(Some(event_file)) => {
+                        self.event = Some(event_file);
+                    }
+                    Ok(None) => {}
+                    Err(err) => self.error = Some(err),
+                }
+                Action::None
+            }
+            Message::EventFileSaved(result) => {
+                if let Err(err) = result {
+                    self.error = Some(err);
+                }
+                Action::None
+            }
         }
     }
 

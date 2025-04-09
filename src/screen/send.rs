@@ -42,6 +42,7 @@ pub enum Message {
     FeeRateInput(String),
     SendCoinsSubmit,
     SendSpaceSubmit,
+    ClientResult(Result<(), String>),
 }
 
 #[derive(Debug, Clone)]
@@ -57,13 +58,10 @@ pub enum Action {
         slabel: SLabel,
         fee_rate: Option<FeeRate>,
     },
+    ShowTransactions,
 }
 
 impl State {
-    pub fn set_error(&mut self, message: String) {
-        self.error = Some(message);
-    }
-
     pub fn reset_inputs(&mut self) {
         self.recipient = Default::default();
         self.amount = Default::default();
@@ -117,6 +115,14 @@ impl State {
                     recipient: recipient_from_str(&self.recipient).unwrap(),
                     fee_rate: fee_rate_from_str(&self.fee_rate).unwrap(),
                 }
+            }
+            Message::ClientResult(Ok(())) => {
+                self.reset_inputs();
+                Action::ShowTransactions
+            }
+            Message::ClientResult(Err(err)) => {
+                self.error = Some(err);
+                Action::None
             }
         }
     }
