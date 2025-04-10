@@ -8,8 +8,14 @@ spaces_client = { git = "https://github.com/Ximik/spaces.git", branch = "wallet2
 spaces_protocol = { git = "https://github.com/Ximik/spaces.git", branch = "wallet2" }
 spaces_wallet = { git = "https://github.com/Ximik/spaces.git", branch = "wallet2" }
 
-tokio = { version = "1", default-features = false, features = ["fs"]}
-iced = { version = "0.13.1", features = ["tokio", "qr_code", "advanced"] }
+tokio = { version = "1", default-features = false, features = ["fs"] }
+iced = { version = "0.13.1", default-features = false, features = [
+    "wgpu",
+    "tiny-skia",
+    "tokio",
+    "qr_code",
+    "advanced",
+] }
 jsonrpsee = { version = "0.22.5", features = ["http-client"] }
 clap = { version = "4.5.6", features = ["derive", "env"] }
 hex = "0.4.3"

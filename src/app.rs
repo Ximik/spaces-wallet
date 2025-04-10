@@ -82,6 +82,23 @@ impl App {
                 icon: Some(icon),
                 ..Default::default()
             })
+            .theme(move |_| {
+                iced::Theme::custom_with_fn(
+                    "Bitcoin".into(),
+                    iced::theme::Palette {
+                        text: iced::Color::from_rgb8(77, 77, 77),
+                        primary: iced::Color::from_rgb8(247, 147, 26),
+                        ..iced::theme::Palette::LIGHT
+                    },
+                    |pallete| {
+                        let mut pallete = iced::theme::palette::Extended::generate(pallete);
+                        pallete.primary.base.text = iced::Color::WHITE;
+                        pallete.primary.strong.text = iced::Color::WHITE;
+                        pallete.primary.weak.text = iced::Color::WHITE;
+                        pallete
+                    }
+                )
+            })
             .run_with(move || Self::new(args))
     }
 
