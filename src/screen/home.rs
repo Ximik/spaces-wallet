@@ -8,7 +8,7 @@ use crate::{
     },
 };
 use iced::{
-    Border, Center, Element, Fill, FillPortion, Theme,
+    Center, Element, Fill, FillPortion, Theme,
     widget::{
         Column, Row, Space, button, center, column, container, horizontal_rule, horizontal_space,
         row, scrollable, text,
@@ -385,127 +385,112 @@ impl State {
                                         .align_y(Center)
                                     };
 
-                                container(
-                                    column![
-                                        row![
-                                            container(
-                                                button(
-                                                    Row::new()
-                                                        .push_maybe(if bumped {
-                                                            Some(text_icon(Icon::ArrowBigUpLines))
-                                                        } else {
-                                                            None
-                                                        })
-                                                        .push(text_monospace(format!(
-                                                            "{} .. {}",
-                                                            &txid_string[..8],
-                                                            &txid_string[54..]
-                                                        ))),
-                                                )
-                                                .style(button::text)
-                                                .padding(0)
-                                                .on_press(Message::TxidPress(txid))
+                                column![
+                                    horizontal_rule(2.0),
+                                    Space::with_height(10),
+                                    row![
+                                        container(
+                                            button(
+                                                Row::new()
+                                                    .push_maybe(if bumped {
+                                                        Some(text_icon(Icon::ArrowBigUpLines))
+                                                    } else {
+                                                        None
+                                                    })
+                                                    .push(text_monospace(format!(
+                                                        "{} .. {}",
+                                                        &txid_string[..8],
+                                                        &txid_string[54..]
+                                                    ))),
                                             )
-                                            .width(FillPortion(3)),
-                                            match event {
-                                                Some(TxEvent {
-                                                    kind: TxEventKind::Commit,
-                                                    space,
-                                                    ..
-                                                }) => tx_data_with_event(
-                                                    "Commit",
-                                                    space.as_ref().unwrap(),
-                                                    None,
+                                            .style(button::text)
+                                            .padding(0)
+                                            .on_press(Message::TxidPress(txid))
+                                        )
+                                        .width(FillPortion(3)),
+                                        match event {
+                                            Some(TxEvent {
+                                                kind: TxEventKind::Commit,
+                                                space,
+                                                ..
+                                            }) => tx_data_with_event(
+                                                "Commit",
+                                                space.as_ref().unwrap(),
+                                                None,
+                                            ),
+                                            Some(TxEvent {
+                                                kind: TxEventKind::Open,
+                                                space,
+                                                details,
+                                                ..
+                                            }) => tx_data_with_event(
+                                                "Open",
+                                                space.as_ref().unwrap(),
+                                                Some(
+                                                    OpenEventDetails::deserialize(
+                                                        details.as_ref().unwrap(),
+                                                    )
+                                                    .unwrap()
+                                                    .initial_bid,
                                                 ),
-                                                Some(TxEvent {
-                                                    kind: TxEventKind::Open,
-                                                    space,
-                                                    details,
-                                                    ..
-                                                }) => tx_data_with_event(
-                                                    "Open",
-                                                    space.as_ref().unwrap(),
-                                                    Some(
-                                                        OpenEventDetails::deserialize(
-                                                            details.as_ref().unwrap(),
-                                                        )
-                                                        .unwrap()
-                                                        .initial_bid,
-                                                    ),
+                                            ),
+                                            Some(TxEvent {
+                                                kind: TxEventKind::Bid,
+                                                space,
+                                                details,
+                                                ..
+                                            }) => tx_data_with_event(
+                                                "Bid",
+                                                space.as_ref().unwrap(),
+                                                Some(
+                                                    BidEventDetails::deserialize(
+                                                        details.as_ref().unwrap(),
+                                                    )
+                                                    .unwrap()
+                                                    .current_bid,
                                                 ),
-                                                Some(TxEvent {
-                                                    kind: TxEventKind::Bid,
-                                                    space,
-                                                    details,
-                                                    ..
-                                                }) => tx_data_with_event(
-                                                    "Bid",
-                                                    space.as_ref().unwrap(),
-                                                    Some(
-                                                        BidEventDetails::deserialize(
-                                                            details.as_ref().unwrap(),
-                                                        )
-                                                        .unwrap()
-                                                        .current_bid,
-                                                    ),
-                                                ),
-                                                Some(TxEvent {
-                                                    kind: TxEventKind::Transfer,
-                                                    space,
-                                                    ..
-                                                }) => tx_data_with_event(
-                                                    "Transfer",
-                                                    space.as_ref().unwrap(),
-                                                    None
-                                                ),
-                                                Some(TxEvent {
-                                                    kind: TxEventKind::Renew,
-                                                    space,
-                                                    ..
-                                                }) => tx_data_with_event(
-                                                    "Renew",
-                                                    space.as_ref().unwrap(),
-                                                    None
-                                                ),
-                                                Some(TxEvent {
-                                                    kind: TxEventKind::Buy,
-                                                    space,
-                                                    ..
-                                                }) => tx_data_with_event(
-                                                    "Buy",
-                                                    space.as_ref().unwrap(),
-                                                    None
-                                                ),
-                                                _ => tx_data_without_event(),
-                                            }
-                                            .width(FillPortion(4)),
-                                        ],
-                                        match block_height {
-                                            Some(block_height) => text_small(height_to_past_est(
-                                                block_height,
-                                                tip_height
-                                            ),),
-                                            None => text_small("Unconfirmed"),
+                                            ),
+                                            Some(TxEvent {
+                                                kind: TxEventKind::Transfer,
+                                                space,
+                                                ..
+                                            }) => tx_data_with_event(
+                                                "Transfer",
+                                                space.as_ref().unwrap(),
+                                                None
+                                            ),
+                                            Some(TxEvent {
+                                                kind: TxEventKind::Renew,
+                                                space,
+                                                ..
+                                            }) => tx_data_with_event(
+                                                "Renew",
+                                                space.as_ref().unwrap(),
+                                                None
+                                            ),
+                                            Some(TxEvent {
+                                                kind: TxEventKind::Buy,
+                                                space,
+                                                ..
+                                            }) => tx_data_with_event(
+                                                "Buy",
+                                                space.as_ref().unwrap(),
+                                                None
+                                            ),
+                                            _ => tx_data_without_event(),
                                         }
-                                    ]
-                                    .spacing(5)
-                                    .padding(10),
-                                )
-                                .style(move |theme: &Theme| {
-                                    let palette = theme.extended_palette();
-                                    container::Style {
-                                        border: Border {
-                                            width: 1.0,
-                                            color: palette.background.strong.color.into(),
-                                            ..Default::default()
-                                        },
-                                        background: block_height
-                                            .map(|_| palette.background.weak.color.into()),
-                                        ..Default::default()
-                                    }
-                                })
-                                .padding(10)
-                                .width(Fill)
+                                        .width(FillPortion(4)),
+                                    ],
+                                    match block_height {
+                                        Some(block_height) => text_small(height_to_past_est(
+                                            block_height,
+                                            tip_height
+                                        ),),
+                                        None => text_small("Unconfirmed"),
+                                    },
+                                ]
+                                .spacing(5)
+                                .padding([10, 0])
                                 .into()
                             }))
                             .push(Space::with_height(5))

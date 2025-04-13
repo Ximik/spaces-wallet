@@ -4,14 +4,16 @@ use crate::{
     widget::{
         form::{Form, text_input},
         icon::{Icon, button_icon, text_icon, text_input_icon},
+        rect,
         tabs::TabsRow,
         text::{error_block, text_big, text_bold, text_monospace, text_monospace_bold, text_small},
     },
 };
 use iced::{
-    Border, Center, Element, Fill, Theme, font,
+    Center, Element, Fill, font,
     widget::{
-        Column, Space, button, center, column, container, horizontal_rule, row, scrollable, text,
+        Column, Row, Space, button, center, column, container, horizontal_rule, row, scrollable,
+        text,
     },
 };
 use spaces_wallet::bitcoin::OutPoint;
@@ -505,37 +507,53 @@ impl State {
                         (text_small("Reserved").width(Fill).into(), State::None)
                     }
                 };
-                button(
-                    row![text_monospace_bold(slabel.to_string()).width(Fill), data]
-                        .padding([10, 5])
-                        .spacing(5)
-                        .align_y(Center)
-                        .width(Fill),
-                )
-                .style(move |theme: &Theme, status: button::Status| {
-                    let palette = theme.extended_palette();
-                    button::Style {
-                        border: Border {
-                            width: match &state {
-                                State::None => 1.0,
-                                _ => 2.0,
-                            },
-                            color: match &state {
-                                State::None => palette.background.strong.color.into(),
-                                State::Success => palette.success.base.color.into(),
-                                State::Danger => palette.danger.base.color.into(),
-                            },
-                            ..Default::default()
-                        },
-                        background: if status == button::Status::Hovered {
-                            Some(palette.background.weak.color.into())
-                        } else {
-                            None
-                        },
-                        ..Default::default()
-                    }
-                })
-                .on_press(Message::SLabelPress(slabel.clone()))
+                column![
+                    horizontal_rule(2.0),
+                    Space::with_height(10),
+                    row![
+                        button(
+                            Row::new()
+                                .push_maybe(match state {
+                                    State::None => None,
+                                    State::Success => Some(rect::Rect::new(15.0, 15.0).style(
+                                        |theme: &iced::Theme| {
+                                            rect::Style {
+                                                border: iced::Border {
+                                                    radius: 3.into(),
+                                                    ..Default::default()
+                                                },
+                                                background: Some(theme.palette().success.into()),
+                                                inner: None,
+                                            }
+                                        }
+                                    )),
+                                    State::Danger => Some(rect::Rect::new(15.0, 15.0).style(
+                                        |theme: &iced::Theme| {
+                                            rect::Style {
+                                                border: iced::Border {
+                                                    radius: 3.into(),
+                                                    ..Default::default()
+                                                },
+                                                background: Some(theme.palette().danger.into()),
+                                                inner: None,
+                                            }
+                                        }
+                                    )),
+                                })
+                                .push(text_monospace(slabel.to_string()))
+                                .spacing(5)
+                                .align_y(Center)
+                        )
+                        .style(button::text)
+                        .width(Fill)
+                        .on_press(Message::SLabelPress(slabel.clone())),
+                        data,
+                    ]
+                    .align_y(Center)
+                    .spacing(5),
+                ]
+                .spacing(5)
+                .padding([10, 0])
                 .into()
             };
 
