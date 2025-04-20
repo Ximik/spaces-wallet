@@ -19,9 +19,6 @@ pub struct Args {
     /// Spaced RPC URL [default: based on specified chain]
     #[arg(long)]
     spaced_rpc_url: Option<String>,
-    /// Specify wallet to use
-    #[arg(long, short, default_value = "default")]
-    wallet: String,
 }
 
 fn default_spaced_rpc_url(chain: &ExtendedNetwork) -> String {
