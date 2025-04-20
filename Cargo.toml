@@ -3,10 +3,13 @@ name = "spaces-wallet"
 version = "0.0.1"
 edition = "2024"
 
+[lints.clippy]
+large_enum_variant = "allow"
+
 [dependencies]
-spaces_client = { git = "https://github.com/Ximik/spaces.git", branch = "wallet2" }
-spaces_protocol = { git = "https://github.com/Ximik/spaces.git", branch = "wallet2" }
-spaces_wallet = { git = "https://github.com/Ximik/spaces.git", branch = "wallet2" }
+spaces_client = { git = "https://github.com/Ximik/spaces.git" }
+spaces_protocol = { git = "https://github.com/Ximik/spaces.git" }
+spaces_wallet = { git = "https://github.com/Ximik/spaces.git" }
 
 tokio = { version = "1", default-features = false, features = ["fs"] }
 iced = { version = "0.13.1", default-features = false, features = [

@@ -1,6 +1,6 @@
 use iced::{
-    widget::{button, horizontal_space, text, Row},
     Center, Element, Fill,
+    widget::{Row, button, horizontal_space, text},
 };
 
 struct Tab<'a, Message> {
@@ -27,6 +27,7 @@ impl<'a, Message: 'a + Clone> From<Tab<'a, Message>> for Element<'a, Message> {
 pub struct TabsRow<'a, Message>(Vec<Tab<'a, Message>>);
 
 impl<'a, Message: 'a> TabsRow<'a, Message> {
+    #[allow(clippy::new_without_default)]
     pub fn new() -> Self {
         Self(Vec::new())
     }

@@ -54,7 +54,7 @@ pub fn fee_rate_from_str(s: &str) -> Option<Option<FeeRate>> {
     if s.is_empty() {
         Some(None)
     } else {
-        s.parse().ok().map(|n| FeeRate::from_sat_per_vb(n))
+        s.parse().ok().map(FeeRate::from_sat_per_vb)
     }
 }
 

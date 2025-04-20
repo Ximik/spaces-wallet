@@ -1,9 +1,9 @@
 mod app;
+mod client;
 mod helpers;
 mod screen;
 mod types;
 mod widget;
-mod client;
 
 use app::App;
 

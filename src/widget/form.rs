@@ -4,23 +4,23 @@ use iced::{
 };
 use std::borrow::Borrow;
 
-pub fn text_input<'a, Message: 'a>(placeholder: &'a str, value: &'a str) -> TextInput<'a, Message>
+pub fn text_input<'a, Message>(placeholder: &'a str, value: &'a str) -> TextInput<'a, Message>
 where
-    Message: Clone,
+    Message: Clone + 'a,
 {
     TextInput::new(placeholder, value).font(Font::MONOSPACE)
 }
 
-pub fn text_label<'a>(text: &'a str) -> Text<'a> {
+pub fn text_label(text: &str) -> Text<'_> {
     Text::new(text).size(14)
 }
 
-pub fn submit_button<'a, Message: 'a>(
+pub fn submit_button<'a, Message>(
     content: impl Into<Element<'a, Message>>,
     on_submit: Option<Message>,
 ) -> Element<'a, Message>
 where
-    Message: Clone,
+    Message: Clone + 'a,
 {
     Container::new(
         Button::new(content)

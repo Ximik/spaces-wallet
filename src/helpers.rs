@@ -55,7 +55,7 @@ pub fn height_to_future_est(block_height: u32, tip_height: u32) -> String {
     if hours == 0 {
         return format!("in {} days", days);
     }
-    return format!("in {} days {} hours", days, hours);
+    format!("in {} days {} hours", days, hours)
 }
 
 pub fn height_to_past_est(block_height: u32, tip_height: u32) -> String {
@@ -75,5 +75,5 @@ pub fn height_to_past_est(block_height: u32, tip_height: u32) -> String {
     }
 
     let days = (remaining_blocks + 72) / 144;
-    return format!("{} days ago", days);
+    format!("{} days ago", days)
 }

@@ -1,7 +1,6 @@
 use iced::{
-    font,
-    widget::{container, text, Space, Text},
-    Element, Fill, Theme,
+    Element, Fill, Theme, font,
+    widget::{Space, Text, container, text},
 };
 
 pub fn text_bold<'a>(content: impl text::IntoFragment<'a>) -> Text<'a> {

@@ -97,7 +97,7 @@ impl State {
                 Action::None
             }
             Message::BumpFeeSubmit => Action::BumpFee {
-                txid: self.txid.as_ref().unwrap().clone(),
+                txid: self.txid.unwrap(),
                 fee_rate: fee_rate_from_str(&self.fee_rate).unwrap().unwrap(),
             },
             Message::BumpFeeResult(Ok(())) => {
@@ -115,7 +115,7 @@ impl State {
         &'a self,
         tip_height: u32,
         balance: Amount,
-        transactions: &'a Vec<TxInfo>,
+        transactions: &'a [TxInfo],
     ) -> Element<'a, Message> {
         if let Some(txid) = self.txid.as_ref() {
             if let Some(transaction) = transactions.iter().find(|tx| &tx.txid == txid) {
@@ -246,7 +246,7 @@ impl State {
                         text_monospace_bold(txid.to_string()).size(20),
                         button_icon(Icon::Copy)
                             .style(button::text)
-                            .on_press(Message::CopyTxidPress(txid.clone())),
+                            .on_press(Message::CopyTxidPress(*txid)),
                     ]
                     .spacing(5)
                     .align_y(Center),
@@ -262,15 +262,11 @@ impl State {
                                 .fee
                                 .map(|fee| { text(format!("Fee: {}", format_amount(fee))) })
                         )
-                        .push_maybe(if let Some(block_height) = transaction.block_height {
-                            Some(text(format!(
-                                "Block: {} ({})",
-                                block_height,
-                                height_to_past_est(block_height, tip_height)
-                            )))
-                        } else {
-                            None
-                        })
+                        .push_maybe(transaction.block_height.map(|block_height| text(format!(
+                            "Block: {} ({})",
+                            block_height,
+                            height_to_past_est(block_height, tip_height)
+                        ))))
                         .push_maybe(if events_rows.is_empty() {
                             None
                         } else {
@@ -320,7 +316,7 @@ impl State {
                         center(text("No transactions yet")).into()
                     } else {
                         scrollable(
-                            Column::from_iter(transactions.into_iter().map(|transaction| {
+                            Column::from_iter(transactions.iter().map(|transaction| {
                                 let block_height = transaction.block_height;
                                 let txid = transaction.txid;
                                 let txid_string = txid.to_string();

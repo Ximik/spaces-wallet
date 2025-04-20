@@ -79,7 +79,7 @@ impl State {
             .add_text_button(
                 "Nostr event",
                 "JSON file",
-                &self.event.as_ref().map_or("", |p| &p.0),
+                self.event.as_ref().map_or("", |p| &p.0),
                 Message::PathPress,
             ),
         ]

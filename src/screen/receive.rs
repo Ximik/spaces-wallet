@@ -1,14 +1,14 @@
 use crate::{
     types::*,
     widget::{
-        icon::{button_icon, Icon},
+        icon::{Icon, button_icon},
         tabs::TabsRow,
         text::{text_big, text_monospace},
     },
 };
 use iced::{
-    widget::{button, column, container, qr_code, row, text},
     Border, Center, Element, Fill, Theme,
+    widget::{button, column, container, qr_code, row, text},
 };
 
 #[derive(Debug)]

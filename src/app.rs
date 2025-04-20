@@ -96,7 +96,7 @@ impl App {
                         pallete.primary.strong.text = iced::Color::WHITE;
                         pallete.primary.weak.text = iced::Color::WHITE;
                         pallete
-                    }
+                    },
                 )
             })
             .run_with(move || Self::new(args))

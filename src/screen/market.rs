@@ -126,9 +126,7 @@ impl State {
                     fee_rate: fee_rate_from_str(&state.fee_rate).unwrap(),
                 }
             }
-            Message::BuyResult(Ok(())) => {
-                Action::ShowTransactions
-            }
+            Message::BuyResult(Ok(())) => Action::ShowTransactions,
             Message::BuyResult(Err(err)) => {
                 if let Self::Buy(state) = self {
                     state.error = Some(err);

@@ -27,7 +27,7 @@ pub enum ClientError {
 }
 fn convert_result<T>(result: Result<T, JsonClientError>) -> Result<T, ClientError> {
     result.map_err(|e| match e {
-        JsonClientError::Call(e) => ClientError::Call (e.message().to_string()),
+        JsonClientError::Call(e) => ClientError::Call(e.message().to_string()),
         _ => ClientError::System(e.to_string()),
     })
 }
