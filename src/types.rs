@@ -2,7 +2,7 @@ pub use spaces_client::wallets::{AddressKind, ListSpacesResponse, TxInfo};
 pub use spaces_protocol::{Covenant, FullSpaceOut, bitcoin::Txid, slabel::SLabel};
 use spaces_wallet::bdk_wallet::serde_json;
 pub use spaces_wallet::{
-    Balance, Listing, WalletInfo,
+    Balance, Listing,
     bdk_wallet::serde::Deserialize,
     bitcoin::{Amount, Denomination, FeeRate, OutPoint},
     nostr::NostrEvent,

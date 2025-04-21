@@ -2,11 +2,15 @@ use iced::time;
 use iced::widget::{Column, button, center, column, container, row, text, vertical_rule};
 use iced::{Center, Element, Fill, Subscription, Task, Theme, clipboard};
 use spaces_client::rpc::ServerInfo;
+use spaces_wallet::WalletInfo;
 
-use crate::client::Client;
-use crate::screen;
-use crate::types::*;
-use crate::widget::icon::{Icon, text_icon};
+use crate::{
+    client::Client,
+    constants::*,
+    screen,
+    types::*,
+    widget::icon::{Icon, text_icon},
+};
 
 #[derive(Debug, Clone)]
 enum Route {
@@ -68,47 +72,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn run(args: crate::Args) -> iced::Result {
-        let icon =
-            iced::window::icon::from_rgba(include_bytes!("../assets/spaces.rgba").to_vec(), 64, 64)
-                .expect("Failed to load icon");
-        let icons_font = include_bytes!("../assets/icons.ttf").as_slice();
-        iced::application(Self::title, Self::update, Self::view)
-            .font(icons_font)
-            .subscription(Self::subscription)
-            .window(iced::window::Settings {
-                min_size: Some((1300.0, 500.0).into()),
-                icon: Some(icon),
-                ..Default::default()
-            })
-            .theme(move |_| {
-                iced::Theme::custom_with_fn(
-                    "Bitcoin".into(),
-                    iced::theme::Palette {
-                        text: iced::Color::from_rgb8(77, 77, 77),
-                        primary: iced::Color::from_rgb8(247, 147, 26),
-                        ..iced::theme::Palette::LIGHT
-                    },
-                    |pallete| {
-                        let mut pallete = iced::theme::palette::Extended::generate(pallete);
-                        pallete.primary.base.text = iced::Color::WHITE;
-                        pallete.primary.strong.text = iced::Color::WHITE;
-                        pallete.primary.weak.text = iced::Color::WHITE;
-                        pallete
-                    },
-                )
-            })
-            .run_with(move || Self::new(args))
-    }
-
-    fn title(&self) -> String {
-        "Akron".into()
-    }
-
-    fn new(args: crate::Args) -> (Self, Task<Message>) {
-        let client = Client::new(&args.spaced_rpc_url.unwrap());
-        let app = Self {
-            client: client.clone(),
+    pub fn new(client: Client) -> Self {
+        Self { 
+            client,
             screen: Screen::Home,
             tip_height: 0,
             blocks_height: 0,
@@ -122,12 +88,30 @@ impl App {
             spaces_screen: Default::default(),
             market_screen: Default::default(),
             sign_screen: Default::default(),
-        };
-        let task = Task::batch([
-            app.get_server_info(),
-            app.load_wallet("default".to_string()),
-        ]);
-        (app, task)
+        }
+    }
+
+    pub fn run(self) -> iced::Result {
+        iced::application(Self::title, Self::update, Self::view)
+            .font(ICONS_FONT.clone())
+            .subscription(Self::subscription)
+            .window(iced::window::Settings {
+                min_size: Some((1300.0, 500.0).into()),
+                icon: Some(WINDOW_ICON.clone()),
+                ..Default::default()
+            })
+            .theme(|_| { BITCOIN_THEME.clone() })
+            .run_with(move || {
+                let task = Task::batch([
+                    self.get_server_info(),
+                    self.load_wallet("default".to_string()),
+                ]);
+                (self, task)
+            })
+    }
+
+    fn title(&self) -> String {
+        "Akron".into()
     }
 
     fn get_server_info(&self) -> Task<Message> {
