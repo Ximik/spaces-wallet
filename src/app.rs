@@ -25,6 +25,7 @@ enum Message {
     NavigateTo(Route),
     ServerInfo(Result<ServerInfo, String>),
     WalletLoad(Result<String, String>),
+    WalletInfo(Result<WalletInfo, String>),
     WalletBalance(String, Result<Balance, String>),
     WalletSpaces(String, Result<ListSpacesResponse, String>),
     WalletTransactions(String, Result<Vec<TxInfo>, String>),
@@ -53,6 +54,8 @@ pub struct App {
     client: Client,
     screen: Screen,
     tip_height: u32,
+    blocks_height: u32,
+    headers_height: u32,
     wallet_name: Option<String>,
     wallets: WalletsState,
     spaces: SpacesState,
@@ -108,6 +111,8 @@ impl App {
             client: client.clone(),
             screen: Screen::Home,
             tip_height: 0,
+            blocks_height: 0,
+            headers_height: 0,
             wallet_name: None,
             wallets: Default::default(),
             spaces: Default::default(),
@@ -139,6 +144,18 @@ impl App {
             _ = client.create_wallet(&wallet_name).await;
             let result = client.load_wallet(&wallet_name).await;
             Message::WalletLoad(result.map(|_| wallet_name))
+        })
+    }
+
+    fn get_wallet_info(&self) -> Task<Message> {
+        if self.wallet_name.is_none() {
+            return Task::none();
+        }
+        let client = self.client.clone();
+        let wallet_name = self.wallet_name.as_ref().unwrap().clone();
+        Task::future(async move {
+            let result = client.get_wallet_info(&wallet_name).await;
+            Message::WalletInfo(result)
         })
     }
 
@@ -255,7 +272,7 @@ impl App {
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::Tick => {
-                let mut tasks = vec![self.get_server_info()];
+                let mut tasks = vec![self.get_server_info(), self.get_wallet_info()];
                 match self.screen {
                     Screen::Home => {
                         tasks.push(self.get_wallet_balance());
@@ -272,18 +289,34 @@ impl App {
                 Task::batch(tasks)
             }
             Message::NavigateTo(route) => self.navigate_to(route),
+            Message::ServerInfo(result) => {
+                match result {
+                    Ok(server_info) => {
+                        self.tip_height = server_info.tip.height;
+                        self.blocks_height = server_info.chain.blocks;
+                        self.headers_height = server_info.chain.headers;
+                    }
+                    Err(_) => {
+                        self.tip_height = 0;
+                        self.blocks_height = 0;
+                        self.headers_height = 0;
+                    }
+                }
+                Task::none()
+            }
             Message::WalletLoad(result) => match result {
                 Ok(wallet_name) => {
                     self.wallet_name = Some(wallet_name.clone());
                     self.wallets.insert(wallet_name);
-                    self.navigate_to(Route::Home)
+                    Task::batch([self.get_wallet_info(), self.navigate_to(Route::Home)])
                 }
                 Err(_) => self.load_wallet("default".to_string()),
             },
-            Message::ServerInfo(result) => {
-                match result {
-                    Ok(server_info) => self.tip_height = server_info.tip.height,
-                    Err(_) => self.tip_height = 0,
+            Message::WalletInfo(result) => {
+                if let Ok(wallet_info) = result {
+                    if let Some(wallet_state) = self.wallets.get_mut(&wallet_info.label) {
+                        wallet_state.tip = wallet_info.tip;
+                    }
                 }
                 Task::none()
             }
@@ -529,6 +562,37 @@ impl App {
     }
 
     fn view(&self) -> Element<Message> {
+        let loading_text = || -> Option<String> {
+            if self.headers_height == 0 {
+                return Some("Loading bitcoin data".to_string());
+            }
+            if self.blocks_height < self.headers_height {
+                return Some(format!(
+                    "Syncing bitcoin data {} / {}",
+                    self.blocks_height, self.headers_height,
+                ));
+            }
+            if self.tip_height < self.blocks_height {
+                return Some(format!(
+                    "Syncing spaces data {} / {}",
+                    self.tip_height, self.blocks_height,
+                ));
+            }
+            if let Some(wallet) = self
+                .wallet_name
+                .as_ref()
+                .and_then(|name| self.wallets.get(name))
+            {
+                if wallet.tip < self.tip_height {
+                    return Some(format!(
+                        "Syncing wallet data {} / {}",
+                        wallet.tip, self.tip_height,
+                    ));
+                }
+            }
+            None
+        };
+
         let navbar_button = |label, icon: Icon, route: Route, screen: Screen| {
             let button = button(
                 row![text_icon(icon).size(20), text(label).size(16)]
@@ -544,79 +608,77 @@ impl App {
             button.on_press(Message::NavigateTo(route))
         };
 
-        let main: Element<Message> = if let Some(wallet) = self
+        if let Some(wallet) = self
             .wallet_name
             .as_ref()
             .and_then(|name| self.wallets.get(name))
         {
-            row![
-                column![
-                    navbar_button("Home", Icon::CurrencyBitcoin, Route::Home, Screen::Home,),
-                    navbar_button("Send", Icon::ArrowDownFromArc, Route::Send, Screen::Send,),
-                    navbar_button(
-                        "Receive",
-                        Icon::ArrowDownToArc,
-                        Route::Receive,
-                        Screen::Receive,
-                    ),
-                    navbar_button("Spaces", Icon::At, Route::Spaces, Screen::Spaces,),
-                    navbar_button("Market", Icon::BuildingBank, Route::Market, Screen::Market,),
-                    navbar_button("Sign", Icon::Signature, Route::Sign, Screen::Sign,),
-                ]
-                .padding(10)
-                .spacing(5)
-                .width(200),
-                vertical_rule(3),
-                container(match &self.screen {
-                    Screen::Home => self
-                        .home_screen
-                        .view(self.tip_height, wallet.balance, &wallet.transactions)
-                        .map(Message::HomeScreen),
-                    Screen::Send => self
-                        .send_screen
-                        .view(&wallet.owned_spaces)
-                        .map(Message::SendScreen),
-                    Screen::Receive => self
-                        .receive_screen
-                        .view(wallet.coin_address.as_ref(), wallet.space_address.as_ref(),)
-                        .map(Message::ReceiveScreen),
-                    Screen::Spaces => self
-                        .spaces_screen
-                        .view(
-                            self.tip_height,
-                            &self.spaces,
-                            &wallet.winning_spaces,
-                            &wallet.outbid_spaces,
-                            &wallet.owned_spaces
-                        )
-                        .map(Message::SpacesScreen),
-                    Screen::Market => self
-                        .market_screen
-                        .view(&wallet.owned_spaces)
-                        .map(Message::MarketScreen),
-                    Screen::Sign => self
-                        .sign_screen
-                        .view(&wallet.owned_spaces)
-                        .map(Message::SignScreen),
-                })
-                .padding(20)
-            ]
-            .into()
-        } else {
-            center(text("Loading").align_x(Center)).into()
-        };
-        Column::new()
-            .push_maybe(Some(
-                container(text("Loading").align_x(Center).width(Fill))
-                    .style(|theme: &Theme| {
-                        container::Style::default()
-                            .background(theme.extended_palette().secondary.base.color)
+            Column::new()
+                .push_maybe(loading_text().map(|t| {
+                    container(text(t).align_x(Center).width(Fill))
+                        .style(|theme: &Theme| {
+                            container::Style::default()
+                                .background(theme.extended_palette().secondary.base.color)
+                        })
+                        .width(Fill)
+                        .padding([10, 0])
+                }))
+                .push(row![
+                    column![
+                        navbar_button("Home", Icon::CurrencyBitcoin, Route::Home, Screen::Home,),
+                        navbar_button("Send", Icon::ArrowDownFromArc, Route::Send, Screen::Send,),
+                        navbar_button(
+                            "Receive",
+                            Icon::ArrowDownToArc,
+                            Route::Receive,
+                            Screen::Receive,
+                        ),
+                        navbar_button("Spaces", Icon::At, Route::Spaces, Screen::Spaces,),
+                        navbar_button("Market", Icon::BuildingBank, Route::Market, Screen::Market,),
+                        navbar_button("Sign", Icon::Signature, Route::Sign, Screen::Sign,),
+                    ]
+                    .padding(10)
+                    .spacing(5)
+                    .width(200),
+                    vertical_rule(3),
+                    container(match &self.screen {
+                        Screen::Home => self
+                            .home_screen
+                            .view(self.blocks_height, wallet.balance, &wallet.transactions)
+                            .map(Message::HomeScreen),
+                        Screen::Send => self
+                            .send_screen
+                            .view(&wallet.owned_spaces)
+                            .map(Message::SendScreen),
+                        Screen::Receive => self
+                            .receive_screen
+                            .view(wallet.coin_address.as_ref(), wallet.space_address.as_ref(),)
+                            .map(Message::ReceiveScreen),
+                        Screen::Spaces => self
+                            .spaces_screen
+                            .view(
+                                self.blocks_height,
+                                &self.spaces,
+                                &wallet.winning_spaces,
+                                &wallet.outbid_spaces,
+                                &wallet.owned_spaces
+                            )
+                            .map(Message::SpacesScreen),
+                        Screen::Market => self
+                            .market_screen
+                            .view(&wallet.owned_spaces)
+                            .map(Message::MarketScreen),
+                        Screen::Sign => self
+                            .sign_screen
+                            .view(&wallet.owned_spaces)
+                            .map(Message::SignScreen),
                     })
-                    .width(Fill)
-                    .padding([10, 0]),
-            ))
-            .push(main)
-            .into()
+                    .padding(20)
+                ])
+                .into()
+        } else {
+            center(text("Loading wallet").align_x(Center)).into()
+        }
     }
 
     fn subscription(&self) -> Subscription<Message> {

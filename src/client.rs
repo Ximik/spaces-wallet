@@ -10,7 +10,7 @@ use spaces_client::rpc::{
 use spaces_client::wallets::{AddressKind, ListSpacesResponse, TxInfo};
 use spaces_protocol::{FullSpaceOut, bitcoin::Txid, slabel::SLabel};
 use spaces_wallet::{
-    Balance, Listing,
+    Balance, Listing, WalletInfo,
     bitcoin::{Amount, FeeRate},
     nostr::NostrEvent,
 };
@@ -50,13 +50,18 @@ impl Client {
         convert_result(result)
     }
 
+    pub async fn create_wallet(&self, wallet_name: &str) -> Result<(), String> {
+        let result = self.client.wallet_create(wallet_name).await;
+        convert_result(result)
+    }
+
     pub async fn load_wallet(&self, wallet_name: &str) -> Result<(), String> {
         let result = self.client.wallet_load(wallet_name).await;
         convert_result(result)
     }
 
-    pub async fn create_wallet(&self, wallet_name: &str) -> Result<(), String> {
-        let result = self.client.wallet_create(wallet_name).await;
+    pub async fn get_wallet_info(&self, wallet_name: &str) -> Result<WalletInfo, String> {
+        let result = self.client.wallet_get_info(wallet_name).await;
         convert_result(result)
     }
 

@@ -2,7 +2,7 @@ pub use spaces_client::wallets::{AddressKind, ListSpacesResponse, TxInfo};
 pub use spaces_protocol::{Covenant, FullSpaceOut, bitcoin::Txid, slabel::SLabel};
 use spaces_wallet::bdk_wallet::serde_json;
 pub use spaces_wallet::{
-    Balance, Listing,
+    Balance, Listing, WalletInfo,
     bdk_wallet::serde::Deserialize,
     bitcoin::{Amount, Denomination, FeeRate, OutPoint},
     nostr::NostrEvent,
@@ -114,6 +114,7 @@ impl AddressState {
 
 #[derive(Debug, Default)]
 pub struct WalletState {
+    pub tip: u32,
     pub balance: Amount,
     pub coin_address: Option<AddressState>,
     pub space_address: Option<AddressState>,
