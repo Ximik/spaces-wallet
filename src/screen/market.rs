@@ -9,7 +9,7 @@ use crate::{
 };
 use iced::{
     Border, Element, Fill, Theme,
-    widget::{button, column, container, row, text_editor},
+    widget::{column, container, row, text_editor},
 };
 use spaces_wallet::bdk_wallet::serde_json;
 
@@ -208,9 +208,7 @@ impl State {
                     .push_maybe(state.listing.as_ref().map(|listing| {
                         container(row![
                             text_monospace(listing).width(Fill),
-                            button_icon(Icon::Copy)
-                                .style(button::secondary)
-                                .on_press(Message::CopyPress)
+                            button_icon(Icon::Copy).on_press(Message::CopyPress)
                         ])
                         .style(|theme: &Theme| {
                             let palette = theme.extended_palette();

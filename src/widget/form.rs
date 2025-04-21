@@ -1,6 +1,9 @@
 use iced::{
     Background, Border, Center, Element, Fill, Font, Shrink, Theme,
-    widget::{Button, Column, Container, Text, TextInput, button, column, pick_list, text_editor},
+    widget::{
+        Button, Column, Container, Text, TextInput, button, column, pick_list, text_editor,
+        text_input as _text_input,
+    },
 };
 use std::borrow::Borrow;
 
@@ -8,7 +11,13 @@ pub fn text_input<'a, Message>(placeholder: &'a str, value: &'a str) -> TextInpu
 where
     Message: Clone + 'a,
 {
-    TextInput::new(placeholder, value).font(Font::MONOSPACE)
+    _text_input(placeholder, value).font(Font::MONOSPACE).style(
+        |theme: &Theme, status: _text_input::Status| {
+            let mut style = _text_input::default(theme, status);
+            style.border = style.border.rounded(7);
+            style
+        },
+    )
 }
 
 pub fn text_label(text: &str) -> Text<'_> {
@@ -26,7 +35,12 @@ where
         Button::new(content)
             .on_press_maybe(on_submit)
             .padding([10, 20])
-            .width(Shrink),
+            .width(Shrink)
+            .style(|theme: &Theme, status: button::Status| {
+                let mut style = button::primary(theme, status);
+                style.border = style.border.rounded(7);
+                style
+            }),
     )
     .align_x(Center)
     .width(Fill)
@@ -83,7 +97,12 @@ impl<'a, Message: Clone + 'a> Form<'a, Message> {
                     .placeholder(placeholder)
                     .on_action(on_action)
                     .font(Font::MONOSPACE)
-                    .padding(10),
+                    .padding(10)
+                    .style(|theme: &Theme, status: text_editor::Status| {
+                        let mut style = text_editor::default(theme, status);
+                        style.border = style.border.rounded(7);
+                        style
+                    }),
             ]
             .spacing(5)
             .into(),
@@ -111,7 +130,7 @@ impl<'a, Message: Clone + 'a> Form<'a, Message> {
                         pick_list::Style {
                             background: Background::Color(palette.background.base.color),
                             border: Border {
-                                radius: 2.0.into(),
+                                radius: 7.0.into(),
                                 width: 1.0,
                                 color: if status == pick_list::Status::Hovered {
                                     palette.background.base.text
@@ -151,7 +170,7 @@ impl<'a, Message: Clone + 'a> Form<'a, Message> {
                     let palette = theme.extended_palette();
                     button::Style {
                         border: Border {
-                            radius: 2.0.into(),
+                            radius: 7.0.into(),
                             width: 1.0,
                             color: if status == button::Status::Hovered {
                                 palette.background.base.text

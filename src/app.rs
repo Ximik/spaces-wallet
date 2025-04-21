@@ -599,10 +599,14 @@ impl App {
                     .spacing(10)
                     .align_y(Center),
             )
-            .style(if self.screen == screen {
-                button::primary
-            } else {
-                button::text
+            .style(move |theme: &Theme, status: button::Status| {
+                let mut style = if self.screen == screen {
+                    button::primary
+                } else {
+                    button::text
+                }(theme, status);
+                style.border = style.border.rounded(7);
+                style
             })
             .width(Fill);
             button.on_press(Message::NavigateTo(route))

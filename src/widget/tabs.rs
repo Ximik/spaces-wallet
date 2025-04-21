@@ -1,5 +1,5 @@
 use iced::{
-    Center, Element, Fill,
+    Center, Element, Fill, Theme,
     widget::{Row, button, horizontal_space, text},
 };
 
@@ -12,10 +12,14 @@ struct Tab<'a, Message> {
 impl<'a, Message: 'a + Clone> From<Tab<'a, Message>> for Element<'a, Message> {
     fn from(tab: Tab<'a, Message>) -> Self {
         button(text(tab.label).size(12).align_x(Center))
-            .style(if tab.selected {
-                button::primary
-            } else {
-                button::secondary
+            .style(move |theme: &Theme, status: button::Status| {
+                let mut style = if tab.selected {
+                    button::primary
+                } else {
+                    button::secondary
+                }(theme, status);
+                style.border = style.border.rounded(7);
+                style
             })
             .on_press(tab.on_press)
             .padding([5, 10])
