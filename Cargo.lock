@@ -56,6 +56,22 @@ dependencies = [
 ]
 
 [[package]]
+name = "akron"
+version = "0.0.1"
+dependencies = [
+ "clap",
+ "hex",
+ "iced",
+ "jsonrpsee",
+ "rfd",
+ "rustc-hash 1.1.0",
+ "spaces_client",
+ "spaces_protocol",
+ "spaces_wallet",
+ "tokio",
+]
+
+[[package]]
 name = "allocator-api2"
 version = "0.2.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4170,22 +4186,6 @@ dependencies = [
  "hex",
  "libc",
  "sha2",
-]
-
-[[package]]
-name = "spaces-wallet"
-version = "0.0.1"
-dependencies = [
- "clap",
- "hex",
- "iced",
- "jsonrpsee",
- "rfd",
- "rustc-hash 1.1.0",
- "spaces_client",
- "spaces_protocol",
- "spaces_wallet",
- "tokio",
 ]
 
 [[package]]

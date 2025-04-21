@@ -102,7 +102,7 @@ impl App {
     }
 
     fn title(&self) -> String {
-        "Spaces Wallet".into()
+        "Akron".into()
     }
 
     fn new(args: crate::Args) -> (Self, Task<Message>) {
