@@ -566,13 +566,13 @@ impl App {
             if self.headers_height == 0 {
                 return Some("Loading bitcoin data".to_string());
             }
-            if self.blocks_height < self.headers_height {
+            if self.blocks_height + 1 < self.headers_height {
                 return Some(format!(
                     "Syncing bitcoin data {} / {}",
                     self.blocks_height, self.headers_height,
                 ));
             }
-            if self.tip_height < self.blocks_height {
+            if self.tip_height + 1 < self.blocks_height {
                 return Some(format!(
                     "Syncing spaces data {} / {}",
                     self.tip_height, self.blocks_height,
@@ -583,7 +583,7 @@ impl App {
                 .as_ref()
                 .and_then(|name| self.wallets.get(name))
             {
-                if wallet.tip < self.tip_height {
+                if wallet.tip + 1 < self.tip_height {
                     return Some(format!(
                         "Syncing wallet data {} / {}",
                         wallet.tip, self.tip_height,
@@ -682,11 +682,18 @@ impl App {
     }
 
     fn subscription(&self) -> Subscription<Message> {
-        time::every(if self.wallet_name.is_some() {
-            time::Duration::from_secs(30)
-        } else {
-            time::Duration::from_secs(5)
-        })
+        time::every(
+            if self.tip_height != 0
+                && self
+                    .wallet_name
+                    .as_ref()
+                    .is_some_and(|name| self.wallets.get(name).unwrap().tip >= self.headers_height)
+            {
+                time::Duration::from_secs(30)
+            } else {
+                time::Duration::from_secs(5)
+            },
+        )
         .map(|_| Message::Tick)
     }
 }
