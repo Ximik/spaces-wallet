@@ -5,8 +5,8 @@ use spaces_client::rpc::ServerInfo;
 use spaces_wallet::WalletInfo;
 
 use crate::{
+    branding::*,
     client::Client,
-    constants::*,
     screen,
     types::*,
     widget::icon::{Icon, text_icon},
@@ -73,7 +73,7 @@ pub struct App {
 
 impl App {
     pub fn new(client: Client) -> Self {
-        Self { 
+        Self {
             client,
             screen: Screen::Home,
             tip_height: 0,
@@ -92,7 +92,7 @@ impl App {
     }
 
     pub fn run(self) -> iced::Result {
-        iced::application(Self::title, Self::update, Self::view)
+        iced::application(WINDOW_TITLE, Self::update, Self::view)
             .font(ICONS_FONT.clone())
             .subscription(Self::subscription)
             .window(iced::window::Settings {
@@ -100,7 +100,7 @@ impl App {
                 icon: Some(WINDOW_ICON.clone()),
                 ..Default::default()
             })
-            .theme(|_| { BITCOIN_THEME.clone() })
+            .theme(|_| BITCOIN_THEME.clone())
             .run_with(move || {
                 let task = Task::batch([
                     self.get_server_info(),
@@ -108,10 +108,6 @@ impl App {
                 ]);
                 (self, task)
             })
-    }
-
-    fn title(&self) -> String {
-        "Akron".into()
     }
 
     fn get_server_info(&self) -> Task<Message> {

@@ -1,16 +1,20 @@
 use iced::{
     Background, Border, Center, Element, Fill, Font, Shrink, Theme,
     widget::{
-        Button, Column, Container, Text, TextInput, button, column, pick_list, text_editor,
-        text_input as _text_input,
+        Button, Column, Container, PickList, Text, TextInput, button, column,
+        pick_list as _pick_list, text_editor, text_input as _text_input,
     },
 };
 use std::borrow::Borrow;
 
-pub fn text_input<'a, Message>(placeholder: &'a str, value: &'a str) -> TextInput<'a, Message>
-where
-    Message: Clone + 'a,
-{
+pub fn text_label(text: &str) -> Text<'_> {
+    Text::new(text).size(14)
+}
+
+pub fn text_input<'a, Message: Clone + 'a>(
+    placeholder: &'a str,
+    value: &'a str,
+) -> TextInput<'a, Message> {
     _text_input(placeholder, value).font(Font::MONOSPACE).style(
         |theme: &Theme, status: _text_input::Status| {
             let mut style = _text_input::default(theme, status);
@@ -20,8 +24,37 @@ where
     )
 }
 
-pub fn text_label(text: &str) -> Text<'_> {
-    Text::new(text).size(14)
+pub fn pick_list<
+    'a,
+    Message: Clone,
+    T: ToString + PartialEq + Clone + 'a,
+    L: Borrow<[T]> + 'a,
+    V: Borrow<T> + 'a,
+>(
+    options: L,
+    selected: Option<V>,
+    on_select: impl Fn(T) -> Message + 'a,
+) -> PickList<'a, T, L, V, Message> {
+    _pick_list(options, selected, on_select)
+        .style(|theme: &Theme, status: _pick_list::Status| {
+            let palette = theme.extended_palette();
+            _pick_list::Style {
+                background: Background::Color(palette.background.base.color),
+                border: Border {
+                    radius: 7.0.into(),
+                    width: 1.0,
+                    color: if status == _pick_list::Status::Hovered {
+                        palette.background.base.text
+                    } else {
+                        palette.background.strong.color
+                    },
+                },
+                .._pick_list::default(theme, status)
+            }
+        })
+        .font(Font::MONOSPACE)
+        .width(Fill)
+        .padding(10)
 }
 
 pub fn submit_button<'a, Message>(
@@ -122,31 +155,9 @@ impl<'a, Message: Clone + 'a> Form<'a, Message> {
         on_select: impl Fn(T) -> Message + 'a,
     ) -> Self {
         self.elements.push(
-            column![
-                text_label(label),
-                pick_list(options, selected, on_select)
-                    .style(|theme: &Theme, status: pick_list::Status| {
-                        let palette = theme.extended_palette();
-                        pick_list::Style {
-                            background: Background::Color(palette.background.base.color),
-                            border: Border {
-                                radius: 7.0.into(),
-                                width: 1.0,
-                                color: if status == pick_list::Status::Hovered {
-                                    palette.background.base.text
-                                } else {
-                                    palette.background.strong.color
-                                },
-                            },
-                            ..pick_list::default(theme, status)
-                        }
-                    })
-                    .font(Font::MONOSPACE)
-                    .width(Fill)
-                    .padding(10),
-            ]
-            .spacing(5)
-            .into(),
+            column![text_label(label), pick_list(options, selected, on_select)]
+                .spacing(5)
+                .into(),
         );
         self
     }
