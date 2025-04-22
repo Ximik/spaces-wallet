@@ -41,7 +41,7 @@ impl Config {
         } else {
             Self {
                 path,
-                setup: true,
+                setup: false,
                 spaced_rpc_url: None,
                 network: ExtendedNetwork::Mainnet,
             }
@@ -76,9 +76,9 @@ impl Config {
                 Task::none()
             }
             Message::SavePress => {
-                let path = self.path.clone();
                 let config = serde_json::to_string_pretty(&self).unwrap();
-                Task::future(tokio::fs::write(path, config)).then(|_| exit())
+                fs::write(&self.path, config).unwrap();
+                exit()
             }
         }
     }
@@ -112,7 +112,8 @@ impl Config {
                         Some(self.network),
                         Message::NetworkSelect
                     )
-                ],
+                ]
+                .spacing(10),
                 submit_button("Save", Some(Message::SavePress))
             ]
             .spacing(10),

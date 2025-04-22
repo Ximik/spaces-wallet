@@ -15,13 +15,14 @@ pub fn text_input<'a, Message: Clone + 'a>(
     placeholder: &'a str,
     value: &'a str,
 ) -> TextInput<'a, Message> {
-    _text_input(placeholder, value).font(Font::MONOSPACE).style(
-        |theme: &Theme, status: _text_input::Status| {
+    _text_input(placeholder, value)
+        .font(Font::MONOSPACE)
+        .style(|theme: &Theme, status: _text_input::Status| {
             let mut style = _text_input::default(theme, status);
             style.border = style.border.rounded(7);
             style
-        },
-    )
+        })
+        .padding(10)
 }
 
 pub fn pick_list<
@@ -107,8 +108,7 @@ impl<'a, Message: Clone + 'a> Form<'a, Message> {
                 text_label(label),
                 text_input(placeholder, value)
                     .on_input(on_input)
-                    .on_submit_maybe(self.submit_message.clone())
-                    .padding(10),
+                    .on_submit_maybe(self.submit_message.clone()),
             ]
             .spacing(5)
             .into(),
