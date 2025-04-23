@@ -174,7 +174,7 @@ impl State {
         }
     }
 
-    fn open_form<'a>(&'a self) -> Element<'a, Message> {
+    fn open_form(&self) -> Element<'_, Message> {
         Form::new(
             "Open",
             (amount_from_str(&self.amount).is_some()
@@ -191,10 +191,10 @@ impl State {
         .into()
     }
 
-    fn bid_form<'a>(&'a self, current_bid: Amount) -> Element<'a, Message> {
+    fn bid_form(&self, current_bid: Amount) -> Element<'_, Message> {
         Form::new(
             "Bid",
-            (amount_from_str(&self.amount).map_or(false, |amount| amount > current_bid)
+            (amount_from_str(&self.amount).is_some_and(|amount| amount > current_bid)
                 && fee_rate_from_str(&self.fee_rate).is_some())
             .then_some(Message::BidSubmit),
         )
@@ -208,7 +208,7 @@ impl State {
         .into()
     }
 
-    fn register_form<'a>(&'a self) -> Element<'a, Message> {
+    fn register_form(&self) -> Element<'_, Message> {
         Form::new(
             "Register",
             fee_rate_from_str(&self.fee_rate).map(|_| Message::RegisterSubmit),
@@ -222,7 +222,7 @@ impl State {
         .into()
     }
 
-    fn renew_form<'a>(&'a self) -> Element<'a, Message> {
+    fn renew_form(&self) -> Element<'_, Message> {
         Form::new(
             "Renew",
             fee_rate_from_str(&self.fee_rate).map(|_| Message::RenewSubmit),
@@ -236,7 +236,7 @@ impl State {
         .into()
     }
 
-    fn open_view<'a>(&'a self) -> Element<'a, Message> {
+    fn open_view(&self) -> Element<'_, Message> {
         row![
             timeline::view(0, "Make an open to propose the space for auction"),
             column![
@@ -249,13 +249,13 @@ impl State {
         .into()
     }
 
-    fn bid_view<'a>(
-        &'a self,
+    fn bid_view(
+        &self,
         tip_height: u32,
         claim_height: Option<u32>,
         current_bid: Amount,
         is_winning: bool,
-    ) -> Element<'a, Message> {
+    ) -> Element<'_, Message> {
         row![
             timeline::view(
                 if claim_height.is_none() { 1 } else { 2 },
@@ -269,7 +269,7 @@ impl State {
                 error_block(self.error.as_ref()),
                 row![
                     text("Current bid").size(14),
-                    text_bold(format!("{}", format_amount(current_bid))).size(14),
+                    text_bold(format_amount(current_bid).to_string()).size(14),
                 ]
                 .spacing(5),
                 row![
@@ -284,7 +284,7 @@ impl State {
         .into()
     }
 
-    fn register_view<'a>(&'a self, current_bid: Amount, is_winning: bool) -> Element<'a, Message> {
+    fn register_view(&self, current_bid: Amount, is_winning: bool) -> Element<'_, Message> {
         row![
             timeline::view(
                 3,
@@ -344,7 +344,7 @@ impl State {
                     }),
                     button_icon(Icon::Copy)
                         .style(button::text)
-                        .on_press(Message::CopyOutpointPress(outpoint.clone())),
+                        .on_press(Message::CopyOutpointPress(*outpoint)),
                 ]
                 .spacing(5)
                 .align_y(Center)
@@ -370,12 +370,12 @@ impl State {
         &'a self,
         tip_height: u32,
         spaces: &'a SpacesState,
-        winning_spaces: &'a Vec<SLabel>,
-        outbid_spaces: &'a Vec<SLabel>,
-        owned_spaces: &'a Vec<SLabel>,
+        winning_spaces: &'a [SLabel],
+        outbid_spaces: &'a [SLabel],
+        owned_spaces: &'a [SLabel],
     ) -> Element<'a, Message> {
         if let Some(slabel) = self.slabel.as_ref() {
-            let covenant = spaces.get_covenant(&slabel);
+            let covenant = spaces.get_covenant(slabel);
             column![
                 row![
                     button(text_icon(Icon::ChevronLeft).size(20))
@@ -397,19 +397,19 @@ impl State {
                         total_burned,
                         ..
                     })) => {
-                        let is_winning = winning_spaces.contains(&slabel);
-                        if claim_height.map_or(false, |height| height <= tip_height) {
+                        let is_winning = winning_spaces.contains(slabel);
+                        if claim_height.is_some_and(|height| height <= tip_height) {
                             self.register_view(*total_burned, is_winning)
                         } else {
                             self.bid_view(tip_height, *claim_height, *total_burned, is_winning)
                         }
                     }
                     Some(Some(Covenant::Transfer { expire_height, .. })) => {
-                        let is_owned = owned_spaces.contains(&slabel);
+                        let is_owned = owned_spaces.contains(slabel);
                         self.registered_view(
                             tip_height,
                             *expire_height,
-                            spaces.get_outpoint(&slabel).unwrap(),
+                            spaces.get_outpoint(slabel).unwrap(),
                             is_owned,
                         )
                     }
@@ -449,9 +449,8 @@ impl State {
                         total_burned,
                         ..
                     })) => {
-                        let is_claimable =
-                            claim_height.map_or(false, |height| height <= tip_height);
-                        let is_winning = winning_spaces.contains(&slabel);
+                        let is_claimable = claim_height.is_some_and(|height| height <= tip_height);
+                        let is_winning = winning_spaces.contains(slabel);
                         (
                             column![
                                 text_small("In auction"),
@@ -485,7 +484,7 @@ impl State {
                         )
                     }
                     Some(Some(Covenant::Transfer { expire_height, .. })) => {
-                        let is_owned = owned_spaces.contains(&slabel);
+                        let is_owned = owned_spaces.contains(slabel);
                         (
                             column![
                                 text_small(if is_owned { "Owned" } else { "Registered" }),

@@ -1,38 +1,27 @@
 mod app;
+mod branding;
+mod client;
+mod config;
 mod helpers;
 mod screen;
 mod types;
 mod widget;
-mod client;
 
-use app::App;
+use std::fs;
 
-use clap::Parser;
-use spaces_client::config::{ExtendedNetwork, default_spaces_rpc_port};
+pub fn main() -> Result<(), Box<dyn std::error::Error>> {
+    let dirs =
+        directories::ProjectDirs::from("", "", "akron").expect("Failed to build project dir path");
+    let data_dir = dirs.data_dir();
+    fs::create_dir_all(data_dir)?;
 
-#[derive(Parser, Debug)]
-#[command(version, about, long_about = None)]
-pub struct Args {
-    /// Bitcoin network to use
-    #[arg(long, env = "SPACED_CHAIN", default_value = "mainnet")]
-    chain: ExtendedNetwork,
-    /// Spaced RPC URL [default: based on specified chain]
-    #[arg(long)]
-    spaced_rpc_url: Option<String>,
-    /// Specify wallet to use
-    #[arg(long, short, default_value = "default")]
-    wallet: String,
-}
-
-fn default_spaced_rpc_url(chain: &ExtendedNetwork) -> String {
-    format!("http://127.0.0.1:{}", default_spaces_rpc_port(chain))
-}
-
-pub fn main() -> iced::Result {
-    let mut args = Args::parse();
-    if args.spaced_rpc_url.is_none() {
-        args.spaced_rpc_url = Some(default_spaced_rpc_url(&args.chain));
+    let config_path = data_dir.join("config.json");
+    let config = config::Config::load(&config_path)?;
+    if config.setup {
+        config.run()?;
+    } else {
+        let client = client::Client::new(config.spaced_rpc_url.as_ref().unwrap());
+        app::App::new(config, client).run()?;
     }
-
-    App::run(args)
+    Ok(())
 }

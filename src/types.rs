@@ -54,7 +54,7 @@ pub fn fee_rate_from_str(s: &str) -> Option<Option<FeeRate>> {
     if s.is_empty() {
         Some(None)
     } else {
-        s.parse().ok().map(|n| FeeRate::from_sat_per_vb(n))
+        s.parse().ok().map(FeeRate::from_sat_per_vb)
     }
 }
 
@@ -114,7 +114,7 @@ impl AddressState {
 
 #[derive(Debug, Default)]
 pub struct WalletState {
-    pub name: String,
+    pub tip: u32,
     pub balance: Amount,
     pub coin_address: Option<AddressState>,
     pub space_address: Option<AddressState>,
@@ -123,11 +123,19 @@ pub struct WalletState {
     pub owned_spaces: Vec<SLabel>,
     pub transactions: Vec<TxInfo>,
 }
-impl WalletState {
-    pub fn new(name: String) -> Self {
-        Self {
-            name,
-            ..Default::default()
-        }
+
+#[derive(Debug, Default)]
+pub struct WalletsState(rustc_hash::FxHashMap<String, WalletState>);
+impl WalletsState {
+    pub fn insert(&mut self, name: String) {
+        self.0.entry(name).or_default();
+    }
+
+    pub fn get(&self, name: &str) -> Option<&WalletState> {
+        self.0.get(name)
+    }
+
+    pub fn get_mut(&mut self, name: &str) -> Option<&mut WalletState> {
+        self.0.get_mut(name)
     }
 }

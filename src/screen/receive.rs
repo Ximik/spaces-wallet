@@ -1,14 +1,14 @@
 use crate::{
     types::*,
     widget::{
-        icon::{button_icon, Icon},
+        icon::{Icon, button_icon},
         tabs::TabsRow,
         text::{text_big, text_monospace},
     },
 };
 use iced::{
-    widget::{button, column, container, qr_code, row, text},
     Border, Center, Element, Fill, Theme,
+    widget::{column, container, qr_code, row, text},
 };
 
 #[derive(Debug)]
@@ -79,7 +79,6 @@ impl State {
                         row![
                             text_monospace(address.as_str()).width(Fill),
                             button_icon(Icon::Copy)
-                                .style(button::secondary)
                                 .on_press(Message::CopyPress(address.as_str().to_owned())),
                         ]
                         .align_y(Center)
@@ -90,7 +89,7 @@ impl State {
                         container::Style::default()
                             .background(palette.background.base.color)
                             .border(Border {
-                                radius: 2.0.into(),
+                                radius: 7.0.into(),
                                 width: 1.0,
                                 color: palette.background.strong.color,
                             })
