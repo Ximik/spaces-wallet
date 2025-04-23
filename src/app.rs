@@ -7,6 +7,7 @@ use spaces_wallet::WalletInfo;
 use crate::{
     branding::*,
     client::Client,
+    config::Config,
     screen,
     types::*,
     widget::icon::{Icon, text_icon},
@@ -55,6 +56,7 @@ enum Screen {
 
 #[derive(Debug)]
 pub struct App {
+    config: Config,
     client: Client,
     screen: Screen,
     tip_height: u32,
@@ -72,8 +74,9 @@ pub struct App {
 }
 
 impl App {
-    pub fn new(client: Client) -> Self {
+    pub fn new(config: Config, client: Client) -> Self {
         Self {
+            config,
             client,
             screen: Screen::Home,
             tip_height: 0,

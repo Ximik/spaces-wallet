@@ -9,16 +9,17 @@ use spaces_client::config::ExtendedNetwork;
 
 use crate::{
     branding::*,
+    client::Client,
     widget::form::{pick_list, submit_button, text_input, text_label},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     #[serde(skip)]
-    path: PathBuf,
-    setup: bool,
-    spaced_rpc_url: Option<String>,
-    network: ExtendedNetwork,
+    pub path: PathBuf,
+    pub setup: bool,
+    pub spaced_rpc_url: Option<String>,
+    pub network: ExtendedNetwork,
 }
 
 #[derive(Debug, Clone)]
@@ -41,7 +42,7 @@ impl Config {
         } else {
             Self {
                 path,
-                setup: false,
+                setup: true,
                 spaced_rpc_url: None,
                 network: ExtendedNetwork::Mainnet,
             }
@@ -49,7 +50,8 @@ impl Config {
         Ok(config)
     }
 
-    pub fn run(self) -> iced::Result {
+    pub fn run(mut self) -> iced::Result {
+        self.setup = false;
         iced::application(WINDOW_TITLE, Self::update, Self::view)
             .font(ICONS_FONT.clone())
             .window(iced::window::Settings {
@@ -60,7 +62,6 @@ impl Config {
             .theme(|_| BITCOIN_THEME.clone())
             .run_with(move || (self, Task::none()))
     }
-
     fn update(&mut self, message: Message) -> Task<Message> {
         match message {
             Message::SpacedRpcUrlToggle(some) => {
@@ -91,7 +92,7 @@ impl Config {
                         .on_toggle(Message::SpacedRpcUrlToggle),
                     text_label("JSON-RPC address"),
                     text_input(
-                        "https://127.0.0.1:7225",
+                        "http://127.0.0.1:7225",
                         self.spaced_rpc_url.as_ref().map_or("", |v| v),
                     )
                     .on_input_maybe(

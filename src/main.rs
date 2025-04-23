@@ -17,11 +17,11 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
 
     let config_path = data_dir.join("config.json");
     let config = config::Config::load(&config_path)?;
-    config.run()?;
-    let config = config::Config::load(&config_path)?;
-
-    // run backend, retrieve the client connection
-
-    // app::App::new(&config).run()
+    if config.setup {
+        config.run()?;
+    } else {
+        let client = client::Client::new(config.spaced_rpc_url.as_ref().unwrap());
+        app::App::new(config, client).run()?;
+    }
     Ok(())
 }
