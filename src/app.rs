@@ -1,6 +1,7 @@
-use iced::time;
-use iced::widget::{Column, button, center, column, container, row, text, vertical_rule};
-use iced::{Center, Element, Fill, Subscription, Task, Theme, clipboard};
+use iced::{
+    Center, Element, Fill, Subscription, Task, Theme, clipboard, exit, time,
+    widget::{Column, button, center, column, container, row, text, vertical_rule, vertical_space},
+};
 use spaces_client::rpc::ServerInfo;
 use spaces_wallet::WalletInfo;
 
@@ -22,6 +23,7 @@ enum Route {
     Space(SLabel),
     Market,
     Sign,
+    Settings,
 }
 
 #[derive(Debug, Clone)]
@@ -42,6 +44,7 @@ enum Message {
     SpacesScreen(screen::spaces::Message),
     MarketScreen(screen::market::Message),
     SignScreen(screen::sign::Message),
+    SettingsScreen(screen::settings::Message),
 }
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -52,6 +55,7 @@ enum Screen {
     Spaces,
     Market,
     Sign,
+    Settings,
 }
 
 #[derive(Debug)]
@@ -71,6 +75,7 @@ pub struct App {
     spaces_screen: screen::spaces::State,
     market_screen: screen::market::State,
     sign_screen: screen::sign::State,
+    settings_screen: screen::settings::State,
 }
 
 impl App {
@@ -91,6 +96,7 @@ impl App {
             spaces_screen: Default::default(),
             market_screen: Default::default(),
             sign_screen: Default::default(),
+            settings_screen: Default::default(),
         }
     }
 
@@ -249,6 +255,10 @@ impl App {
                 self.screen = Screen::Sign;
                 self.get_wallet_spaces()
             }
+            Route::Settings => {
+                self.screen = Screen::Settings;
+                Task::none()
+            }
         }
     }
 
@@ -275,9 +285,11 @@ impl App {
             Message::ServerInfo(result) => {
                 match result {
                     Ok(server_info) => {
-                        self.tip_height = server_info.tip.height;
-                        self.blocks_height = server_info.chain.blocks;
-                        self.headers_height = server_info.chain.headers;
+                        if self.config.network.to_string() == server_info.network {
+                            self.tip_height = server_info.tip.height;
+                            self.blocks_height = server_info.chain.blocks;
+                            self.headers_height = server_info.chain.headers;
+                        }
                     }
                     Err(_) => {
                         self.tip_height = 0;
@@ -541,6 +553,13 @@ impl App {
                 }
                 screen::sign::Action::None => Task::none(),
             },
+            Message::SettingsScreen(message) => match self.settings_screen.update(message) {
+                screen::settings::Action::ResetBackend => {
+                    self.config.remove();
+                    exit()
+                }
+                screen::settings::Action::None => Task::none(),
+            },
         }
     }
 
@@ -623,6 +642,13 @@ impl App {
                         navbar_button("Spaces", Icon::At, Route::Spaces, Screen::Spaces,),
                         navbar_button("Market", Icon::BuildingBank, Route::Market, Screen::Market,),
                         navbar_button("Sign", Icon::Signature, Route::Sign, Screen::Sign,),
+                        vertical_space(),
+                        navbar_button(
+                            "Settings",
+                            Icon::Settings,
+                            Route::Settings,
+                            Screen::Settings,
+                        ),
                     ]
                     .padding(10)
                     .spacing(5)
@@ -659,6 +685,8 @@ impl App {
                             .sign_screen
                             .view(&wallet.owned_spaces)
                             .map(Message::SignScreen),
+                        Screen::Settings =>
+                            self.settings_screen.view().map(Message::SettingsScreen),
                     })
                     .padding(20)
                 ])

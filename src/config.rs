@@ -9,15 +9,13 @@ use spaces_client::config::ExtendedNetwork;
 
 use crate::{
     branding::*,
-    client::Client,
     widget::form::{pick_list, submit_button, text_input, text_label},
 };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
     #[serde(skip)]
-    pub path: PathBuf,
-    pub setup: bool,
+    path: PathBuf,
     pub spaced_rpc_url: Option<String>,
     pub network: ExtendedNetwork,
 }
@@ -31,27 +29,33 @@ pub enum Message {
 }
 
 impl Config {
-    pub fn load(path: impl Into<PathBuf>) -> Result<Self, Box<dyn std::error::Error>> {
-        let path: PathBuf = path.into();
-        let config = if path.exists() {
-            let config = fs::read_to_string(&path)?;
-            Self {
-                path,
-                ..serde_json::from_str(&config)?
-            }
-        } else {
-            Self {
-                path,
-                setup: true,
-                spaced_rpc_url: None,
-                network: ExtendedNetwork::Mainnet,
-            }
+    pub fn new(path: PathBuf) -> Self {
+        Self {
+            path,
+            spaced_rpc_url: None,
+            network: ExtendedNetwork::Mainnet,
+        }
+    }
+
+    pub fn load(path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
+        let config = fs::read_to_string(&path)?;
+        let config = Self {
+            path,
+            ..serde_json::from_str(&config)?
         };
         Ok(config)
     }
 
-    pub fn run(mut self) -> iced::Result {
-        self.setup = false;
+    pub fn save(&self) {
+        let config = serde_json::to_string_pretty(&self).unwrap();
+        fs::write(&self.path, config).unwrap();
+    }
+
+    pub fn remove(&self) {
+        fs::remove_file(&self.path).unwrap();
+    }
+
+    pub fn run(self) -> iced::Result {
         iced::application(WINDOW_TITLE, Self::update, Self::view)
             .font(ICONS_FONT.clone())
             .window(iced::window::Settings {
@@ -77,8 +81,7 @@ impl Config {
                 Task::none()
             }
             Message::SavePress => {
-                let config = serde_json::to_string_pretty(&self).unwrap();
-                fs::write(&self.path, config).unwrap();
+                self.save();
                 exit()
             }
         }

@@ -3,7 +3,7 @@ use once_cell::sync::Lazy;
 pub static WINDOW_TITLE: &str = "Akron";
 
 pub static WINDOW_ICON: Lazy<iced::window::Icon> = Lazy::new(|| {
-    iced::window::icon::from_rgba(include_bytes!("../assets/spaces.rgba").to_vec(), 64, 64)
+    iced::window::icon::from_rgba(include_bytes!("../assets/akron.rgba").to_vec(), 64, 64)
         .expect("Failed to load icon")
 });
 

@@ -48,8 +48,8 @@ def build_icons_font(icons_path, font_path, rs_path, font_name):
 if __name__ == "__main__":
     assets_dir = os.path.dirname(os.path.abspath(__file__))
     build_rgba(
-        os.path.join(assets_dir, "spaces.png"),
-        os.path.join(assets_dir, "spaces.rgba"),
+        os.path.join(assets_dir, "akron.png"),
+        os.path.join(assets_dir, "akron.rgba"),
     )
     build_icons_font(
         os.path.join(assets_dir, "icons"),
