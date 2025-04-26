@@ -149,6 +149,10 @@ impl WalletsState {
         }
     }
 
+    pub fn get_wallets(&self) -> Vec<&String> {
+        self.wallets.keys().collect()
+    }
+
     pub fn set_current(&mut self, name: &str) -> bool {
         if let Some(wallet_state) = self.wallets.get_mut(name) {
             self.current = Some(name.to_string());

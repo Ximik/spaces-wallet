@@ -1,5 +1,3 @@
-use std::result;
-
 use iced::{
     Center, Element, Fill, Subscription, Task, Theme, clipboard, exit, time,
     widget::{Column, button, center, column, container, row, text, vertical_rule, vertical_space},
@@ -303,14 +301,12 @@ impl App {
             }
             Message::ListWallets(result) => match result {
                 Ok(wallets_names) => {
-                    println!("{:?}", wallets_names);
                     self.wallets.set_wallets(&wallets_names);
                     if self.wallets.get_current().is_none() {
                         if let Some(name) = self.config.wallet.as_ref() {
                             self.wallets.set_current(name);
                         }
                     }
-                    println!("{:?}", self.wallets);
                     if let Some(wallet) = self.wallets.get_current() {
                         let client = self.client.clone();
                         let wallet_name = wallet.name.clone();
@@ -578,6 +574,11 @@ impl App {
                 screen::sign::Action::None => Task::none(),
             },
             Message::SettingsScreen(message) => match self.settings_screen.update(message) {
+                screen::settings::Action::SetCurrentWallet(name) => {
+                    self.wallets.set_current(&name);
+                    self.config.wallet = Some(name);
+                    self.list_wallets()
+                }
                 screen::settings::Action::ResetBackend => {
                     self.config.remove();
                     exit()
@@ -634,89 +635,114 @@ impl App {
             button.on_press(Message::NavigateTo(route))
         };
 
-        if let Some(wallet) = self.wallets.get_current() {
-            Column::new()
-                .push_maybe(loading_text().map(|t| {
-                    container(text(t).align_x(Center).width(Fill))
-                        .style(|theme: &Theme| {
-                            container::Style::default()
-                                .background(theme.extended_palette().secondary.base.color)
-                        })
-                        .width(Fill)
-                        .padding([10, 0])
-                }))
-                .push(row![
-                    column![
-                        navbar_button("Home", Icon::CurrencyBitcoin, Route::Home, Screen::Home,),
-                        navbar_button("Send", Icon::ArrowDownFromArc, Route::Send, Screen::Send,),
-                        navbar_button(
-                            "Receive",
-                            Icon::ArrowDownToArc,
-                            Route::Receive,
-                            Screen::Receive,
-                        ),
-                        navbar_button("Spaces", Icon::At, Route::Spaces, Screen::Spaces,),
-                        navbar_button("Market", Icon::BuildingBank, Route::Market, Screen::Market,),
-                        navbar_button("Sign", Icon::Signature, Route::Sign, Screen::Sign,),
-                        vertical_space(),
-                        navbar_button(
-                            "Settings",
-                            Icon::Settings,
-                            Route::Settings,
-                            Screen::Settings,
-                        ),
-                    ]
-                    .padding(10)
-                    .spacing(5)
-                    .width(200),
-                    vertical_rule(3),
-                    container(match &self.screen {
-                        Screen::Home => self
-                            .home_screen
-                            .view(
-                                self.blocks_height,
-                                wallet.state.balance,
-                                &wallet.state.transactions
-                            )
-                            .map(Message::HomeScreen),
-                        Screen::Send => self
-                            .send_screen
-                            .view(&wallet.state.owned_spaces)
-                            .map(Message::SendScreen),
-                        Screen::Receive => self
-                            .receive_screen
-                            .view(
-                                wallet.state.coin_address.as_ref(),
-                                wallet.state.space_address.as_ref(),
-                            )
-                            .map(Message::ReceiveScreen),
-                        Screen::Spaces => self
-                            .spaces_screen
-                            .view(
-                                self.blocks_height,
-                                &self.spaces,
-                                &wallet.state.winning_spaces,
-                                &wallet.state.outbid_spaces,
-                                &wallet.state.owned_spaces
-                            )
-                            .map(Message::SpacesScreen),
-                        Screen::Market => self
-                            .market_screen
-                            .view(&wallet.state.owned_spaces)
-                            .map(Message::MarketScreen),
-                        Screen::Sign => self
-                            .sign_screen
-                            .view(&wallet.state.owned_spaces)
-                            .map(Message::SignScreen),
-                        Screen::Settings =>
-                            self.settings_screen.view().map(Message::SettingsScreen),
+        Column::new()
+            .push_maybe(loading_text().map(|t| {
+                container(text(t).align_x(Center).width(Fill))
+                    .style(|theme: &Theme| {
+                        container::Style::default()
+                            .background(theme.extended_palette().secondary.base.color)
                     })
-                    .padding(20)
-                ])
-                .into()
-        } else {
-            center(text("Loading wallet").align_x(Center)).into()
-        }
+                    .width(Fill)
+                    .padding([10, 0])
+            }))
+            .push(row![
+                column![
+                    navbar_button("Home", Icon::CurrencyBitcoin, Route::Home, Screen::Home,),
+                    navbar_button("Send", Icon::ArrowDownFromArc, Route::Send, Screen::Send,),
+                    navbar_button(
+                        "Receive",
+                        Icon::ArrowDownToArc,
+                        Route::Receive,
+                        Screen::Receive,
+                    ),
+                    navbar_button("Spaces", Icon::At, Route::Spaces, Screen::Spaces,),
+                    navbar_button("Market", Icon::BuildingBank, Route::Market, Screen::Market,),
+                    navbar_button("Sign", Icon::Signature, Route::Sign, Screen::Sign,),
+                    vertical_space(),
+                    navbar_button(
+                        "Settings",
+                        Icon::Settings,
+                        Route::Settings,
+                        Screen::Settings,
+                    ),
+                ]
+                .padding(10)
+                .spacing(5)
+                .width(200),
+                vertical_rule(3),
+                container(match &self.screen {
+                    Screen::Home =>
+                        if let Some(wallet) = self.wallets.get_current() {
+                            self.home_screen
+                                .view(
+                                    self.blocks_height,
+                                    wallet.state.balance,
+                                    &wallet.state.transactions,
+                                )
+                                .map(Message::HomeScreen)
+                        } else {
+                            center("No wallet loaded").into()
+                        },
+                    Screen::Send =>
+                        if let Some(wallet) = self.wallets.get_current() {
+                            self.send_screen
+                                .view(&wallet.state.owned_spaces)
+                                .map(Message::SendScreen)
+                        } else {
+                            center("No wallet loaded").into()
+                        },
+                    Screen::Receive =>
+                        if let Some(wallet) = self.wallets.get_current() {
+                            self.receive_screen
+                                .view(
+                                    wallet.state.coin_address.as_ref(),
+                                    wallet.state.space_address.as_ref(),
+                                )
+                                .map(Message::ReceiveScreen)
+                        } else {
+                            center("No wallet loaded").into()
+                        },
+                    Screen::Spaces =>
+                        if let Some(wallet) = self.wallets.get_current() {
+                            self.spaces_screen
+                                .view(
+                                    self.blocks_height,
+                                    &self.spaces,
+                                    &wallet.state.winning_spaces,
+                                    &wallet.state.outbid_spaces,
+                                    &wallet.state.owned_spaces,
+                                )
+                                .map(Message::SpacesScreen)
+                        } else {
+                            center("No wallet loaded").into()
+                        },
+                    Screen::Market =>
+                        if let Some(wallet) = self.wallets.get_current() {
+                            self.market_screen
+                                .view(wallet.state.owned_spaces.as_ref())
+                                .map(Message::MarketScreen)
+                        } else {
+                            center("No wallet loaded").into()
+                        },
+                    Screen::Sign =>
+                        if let Some(wallet) = self.wallets.get_current() {
+                            self.sign_screen
+                                .view(&wallet.state.owned_spaces)
+                                .map(Message::SignScreen)
+                        } else {
+                            center("No wallet loaded").into()
+                        },
+                    Screen::Settings => self
+                        .settings_screen
+                        .view(
+                            self.wallets.get_wallets(),
+                            self.wallets.get_current().map(|w| w.name),
+                        )
+                        .map(Message::SettingsScreen),
+                })
+                .padding(20)
+            ])
+            .into()
     }
 
     fn subscription(&self) -> Subscription<Message> {
