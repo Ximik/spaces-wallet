@@ -18,6 +18,7 @@ pub struct Config {
     path: PathBuf,
     pub spaced_rpc_url: Option<String>,
     pub network: ExtendedNetwork,
+    pub wallet: Option<String>,
 }
 
 #[derive(Debug, Clone)]
@@ -34,6 +35,7 @@ impl Config {
             path,
             spaced_rpc_url: None,
             network: ExtendedNetwork::Mainnet,
+            wallet: None,
         }
     }
 

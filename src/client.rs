@@ -50,6 +50,11 @@ impl Client {
         convert_result(result)
     }
 
+    pub async fn list_wallets(&self) -> Result<Vec<String>, String> {
+        let result = self.client.list_wallets().await;
+        convert_result(result)
+    }
+
     pub async fn create_wallet(&self, wallet_name: &str) -> Result<(), String> {
         let result = self.client.wallet_create(wallet_name).await;
         convert_result(result)

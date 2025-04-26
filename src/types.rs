@@ -124,18 +124,56 @@ pub struct WalletState {
     pub transactions: Vec<TxInfo>,
 }
 
+pub struct WalletEntry<'a> {
+    pub name: &'a String,
+    pub state: &'a WalletState,
+}
+
 #[derive(Debug, Default)]
-pub struct WalletsState(rustc_hash::FxHashMap<String, WalletState>);
+pub struct WalletsState {
+    current: Option<String>,
+    wallets: rustc_hash::FxHashMap<String, Option<WalletState>>,
+}
 impl WalletsState {
-    pub fn insert(&mut self, name: String) {
-        self.0.entry(name).or_default();
+    pub fn set_wallets(&mut self, names: &[String]) {
+        for name in names {
+            self.wallets.retain(|key, _| names.contains(key));
+            if !self.wallets.contains_key(name) {
+                self.wallets.insert(name.clone(), None);
+            }
+        }
+        if let Some(current) = self.current.take() {
+            if self.wallets.contains_key(&current) {
+                self.current = Some(current);
+            }
+        }
     }
 
-    pub fn get(&self, name: &str) -> Option<&WalletState> {
-        self.0.get(name)
+    pub fn set_current(&mut self, name: &str) -> bool {
+        if let Some(wallet_state) = self.wallets.get_mut(name) {
+            self.current = Some(name.to_string());
+            if wallet_state.is_none() {
+                *wallet_state = Some(WalletState::default());
+            }
+            true
+        } else {
+            false
+        }
+    }
+
+    pub fn get_current(&self) -> Option<WalletEntry<'_>> {
+        self.current.as_ref().and_then(|current_name| {
+            self.wallets
+                .get_key_value(current_name)
+                .and_then(|(name, wallet_state)| {
+                    wallet_state
+                        .as_ref()
+                        .map(|state| WalletEntry { name, state })
+                })
+        })
     }
 
     pub fn get_mut(&mut self, name: &str) -> Option<&mut WalletState> {
-        self.0.get_mut(name)
+        self.wallets.get_mut(name).and_then(|state| state.as_mut())
     }
 }
