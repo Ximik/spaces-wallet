@@ -65,6 +65,19 @@ impl Client {
         convert_result(result)
     }
 
+    pub async fn export_wallet(&self, wallet_name: &str) -> Result<String, String> {
+        let result = self.client.wallet_export(wallet_name).await;
+        let result = result.map(|w| w.to_string());
+        convert_result(result)
+    }
+
+    pub async fn import_wallet(&self, wallet_string: &str) -> Result<(), String> {
+        let wallet = std::str::FromStr::from_str(wallet_string)
+            .map_err(|e: serde_json::Error| e.to_string())?;
+        let result = self.client.wallet_import(wallet).await;
+        convert_result(result)
+    }
+
     pub async fn get_wallet_info(&self, wallet_name: &str) -> Result<WalletInfo, String> {
         let result = self.client.wallet_get_info(wallet_name).await;
         convert_result(result)

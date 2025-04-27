@@ -2,6 +2,7 @@ use iced::{
     Center, Element, Fill, Subscription, Task, Theme, clipboard, exit, time,
     widget::{Column, button, center, column, container, row, text, vertical_rule, vertical_space},
 };
+use jsonrpsee::core::tracing::client;
 use spaces_client::rpc::ServerInfo;
 use spaces_wallet::WalletInfo;
 
@@ -528,7 +529,6 @@ impl App {
                         .await
                         .map(|file| file.path().to_path_buf());
 
-                    use spaces_wallet::bdk_wallet::serde_json;
                     let result = if let Some(path) = path {
                         match tokio::fs::read_to_string(&path).await {
                             Ok(content) => match serde_json::from_str::<NostrEvent>(&content) {
@@ -578,6 +578,63 @@ impl App {
                     self.wallets.set_current(&name);
                     self.config.wallet = Some(name);
                     self.list_wallets()
+                }
+                screen::settings::Action::ExportWallet(wallet_name) => {
+                    let client = self.client.clone();
+                    Task::future(async move {
+                        let result = client.export_wallet(&wallet_name).await;
+                        let result = match result {
+                            Ok(contents) => {
+                                let file_path = rfd::AsyncFileDialog::new()
+                                    .add_filter("Wallet file", &["json"])
+                                    .add_filter("All files", &["*"])
+                                    .save_file()
+                                    .await
+                                    .map(|file| file.path().to_path_buf());
+
+                                if let Some(file_path) = file_path {
+                                    tokio::fs::write(&file_path, contents)
+                                        .await
+                                        .map_err(|e| e.to_string())
+                                } else {
+                                    Ok(())
+                                }
+                            }
+                            Err(err) => Err(err),
+                        };
+                        Message::SettingsScreen(screen::settings::Message::WalletFileSaved(result))
+                    })
+                }
+                screen::settings::Action::CreateWallet(wallet_name) => {
+                    let client = self.client.clone();
+                    Task::future(async move {
+                        let result = client.create_wallet(&wallet_name).await;
+                        Message::SettingsScreen(screen::settings::Message::WalletCreated(result))
+                    })
+                    .chain(self.list_wallets())
+                }
+                screen::settings::Action::ImportWallet => {
+                    let client = self.client.clone();
+                    Task::future(async move {
+                        let path = rfd::AsyncFileDialog::new()
+                            .add_filter("wallet file", &["json"])
+                            .pick_file()
+                            .await
+                            .map(|file| file.path().to_path_buf());
+
+                        let result = if let Some(path) = path {
+                            match tokio::fs::read_to_string(&path).await {
+                                Ok(content) => client.import_wallet(&content).await,
+                                Err(err) => Err(format!("Failed to read file: {}", err)),
+                            }
+                        } else {
+                            Ok(())
+                        };
+                        Message::SettingsScreen(screen::settings::Message::WalletFileImported(
+                            result,
+                        ))
+                    })
+                    .chain(self.list_wallets())
                 }
                 screen::settings::Action::ResetBackend => {
                     self.config.remove();
