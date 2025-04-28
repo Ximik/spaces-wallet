@@ -32,9 +32,13 @@ fn convert_empty_result<T>(result: Result<T, ClientError>) -> Result<(), String>
 }
 
 impl Client {
-    pub fn new(rpc_url: &str) -> Self {
-        let client = Arc::new(HttpClientBuilder::default().build(rpc_url).unwrap());
-        Self { client }
+    pub fn new(rpc_url: &str) -> Result<Self, String> {
+        let client = Arc::new(
+            HttpClientBuilder::default()
+                .build(rpc_url)
+                .map_err(|e| e.to_string())?,
+        );
+        Ok(Self { client })
     }
 
     pub async fn get_server_info(&self) -> Result<ServerInfo, String> {

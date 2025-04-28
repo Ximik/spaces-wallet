@@ -1,5 +1,5 @@
 use iced::{
-    Element, Fill, Task, exit,
+    Element, Task, exit,
     widget::{center, checkbox, column},
 };
 use serde::{Deserialize, Serialize};
@@ -9,11 +9,17 @@ use spaces_client::config::ExtendedNetwork;
 
 use crate::{
     branding::*,
-    widget::form::{pick_list, submit_button, text_input, text_label},
+    client::Client,
+    widget::{
+        form::{pick_list, submit_button, text_input, text_label},
+        text::error_block,
+    },
 };
 
 #[derive(Debug, Serialize, Deserialize)]
 pub struct Config {
+    #[serde(skip)]
+    error: Option<String>,
     #[serde(skip)]
     path: PathBuf,
     pub spaced_rpc_url: Option<String>,
@@ -26,12 +32,15 @@ pub enum Message {
     SpacedRpcUrlToggle(bool),
     SpacedRpcUrlInput(String),
     NetworkSelect(ExtendedNetwork),
-    SavePress,
+    ConnectPress,
+    SetError(String),
+    SaveAndExit,
 }
 
 impl Config {
     pub fn new(path: PathBuf) -> Self {
         Self {
+            error: None,
             path,
             spaced_rpc_url: None,
             network: ExtendedNetwork::Mainnet,
@@ -61,14 +70,16 @@ impl Config {
         iced::application(WINDOW_TITLE, Self::update, Self::view)
             .font(ICONS_FONT.clone())
             .window(iced::window::Settings {
-                size: (350.0, 300.0).into(),
+                size: (400.0, 350.0).into(),
                 icon: Some(WINDOW_ICON.clone()),
                 ..Default::default()
             })
             .theme(|_| BITCOIN_THEME.clone())
             .run_with(move || (self, Task::none()))
     }
+
     fn update(&mut self, message: Message) -> Task<Message> {
+        self.error = None;
         match message {
             Message::SpacedRpcUrlToggle(some) => {
                 self.spaced_rpc_url = if some { Some(String::new()) } else { None };
@@ -82,7 +93,32 @@ impl Config {
                 self.network = network;
                 Task::none()
             }
-            Message::SavePress => {
+            Message::ConnectPress => {
+                if let Some(rpc_url) = self.spaced_rpc_url.as_ref() {
+                    let network = self.network.to_string();
+                    match Client::new(rpc_url) {
+                        Ok(client) => Task::future(async move { client.get_server_info().await })
+                            .map(move |response| match response {
+                                Ok(info) => {
+                                    if info.network == network {
+                                        Message::SaveAndExit
+                                    } else {
+                                        Message::SetError("Wrong network".to_string())
+                                    }
+                                }
+                                Err(err) => Message::SetError(err),
+                            }),
+                        Err(err) => Task::done(Message::SetError(err)),
+                    }
+                } else {
+                    Task::done(Message::SaveAndExit)
+                }
+            }
+            Message::SetError(err) => {
+                self.error = Some(err);
+                Task::none()
+            }
+            Message::SaveAndExit => {
                 self.save();
                 exit()
             }
@@ -92,6 +128,7 @@ impl Config {
     fn view(&self) -> Element<Message> {
         center(
             column![
+                error_block(self.error.as_ref()),
                 column![
                     checkbox("Use standalone spaced node", self.spaced_rpc_url.is_some())
                         .on_toggle(Message::SpacedRpcUrlToggle),
@@ -120,7 +157,14 @@ impl Config {
                     )
                 ]
                 .spacing(10),
-                submit_button("Save", Some(Message::SavePress)).width(Fill)
+                center(submit_button(
+                    "Connect",
+                    if self.spaced_rpc_url.as_ref().is_some_and(|s| s.is_empty()) {
+                        None
+                    } else {
+                        Some(Message::ConnectPress)
+                    }
+                ))
             ]
             .spacing(10),
         )

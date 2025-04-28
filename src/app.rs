@@ -285,11 +285,9 @@ impl App {
             Message::ServerInfo(result) => {
                 match result {
                     Ok(server_info) => {
-                        if self.config.network.to_string() == server_info.network {
-                            self.tip_height = server_info.tip.height;
-                            self.blocks_height = server_info.chain.blocks;
-                            self.headers_height = server_info.chain.headers;
-                        }
+                        self.tip_height = server_info.tip.height;
+                        self.blocks_height = server_info.chain.blocks;
+                        self.headers_height = server_info.chain.headers;
                     }
                     Err(_) => {
                         self.tip_height = 0;
