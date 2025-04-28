@@ -61,24 +61,19 @@ pub fn pick_list<
 pub fn submit_button<'a, Message>(
     content: impl Into<Element<'a, Message>>,
     on_submit: Option<Message>,
-) -> Element<'a, Message>
+) -> Button<'a, Message>
 where
     Message: Clone + 'a,
 {
-    Container::new(
-        Button::new(content)
-            .on_press_maybe(on_submit)
-            .padding([10, 20])
-            .width(Shrink)
-            .style(|theme: &Theme, status: button::Status| {
-                let mut style = button::primary(theme, status);
-                style.border = style.border.rounded(7);
-                style
-            }),
-    )
-    .align_x(Center)
-    .width(Fill)
-    .into()
+    Button::new(content)
+        .on_press_maybe(on_submit)
+        .padding([10, 20])
+        .width(Shrink)
+        .style(|theme: &Theme, status: button::Status| {
+            let mut style = button::primary(theme, status);
+            style.border = style.border.rounded(7);
+            style
+        })
 }
 
 pub struct Form<'a, Message> {
@@ -212,7 +207,11 @@ impl<'a, Message: Clone + 'a> Form<'a, Message> {
 impl<'a, Message: 'a + Clone> From<Form<'a, Message>> for Element<'a, Message> {
     fn from(form: Form<'a, Message>) -> Self {
         Column::from_vec(form.elements)
-            .push(submit_button(form.submit_label, form.submit_message))
+            .push(
+                Container::new(submit_button(form.submit_label, form.submit_message))
+                    .align_x(Center)
+                    .width(Fill),
+            )
             .spacing(10)
             .width(Fill)
             .into()

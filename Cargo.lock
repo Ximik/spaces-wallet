@@ -4194,7 +4194,7 @@ dependencies = [
 [[package]]
 name = "spaces_client"
 version = "0.0.7"
-source = "git+https://github.com/Ximik/spaces.git?branch=wallet#39f1546a070def01f24df139512ab7207741e85d"
+source = "git+https://github.com/Ximik/spaces.git?branch=wallet#98e8c4bd55f598eab1dba0bc3a38c3fddbdde861"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4225,7 +4225,7 @@ dependencies = [
 [[package]]
 name = "spaces_protocol"
 version = "0.0.7"
-source = "git+https://github.com/Ximik/spaces.git?branch=wallet#39f1546a070def01f24df139512ab7207741e85d"
+source = "git+https://github.com/Ximik/spaces.git?branch=wallet#98e8c4bd55f598eab1dba0bc3a38c3fddbdde861"
 dependencies = [
  "bincode",
  "bitcoin",
@@ -4236,7 +4236,7 @@ dependencies = [
 [[package]]
 name = "spaces_wallet"
 version = "0.0.7"
-source = "git+https://github.com/Ximik/spaces.git?branch=wallet#39f1546a070def01f24df139512ab7207741e85d"
+source = "git+https://github.com/Ximik/spaces.git?branch=wallet#98e8c4bd55f598eab1dba0bc3a38c3fddbdde861"
 dependencies = [
  "anyhow",
  "bdk_wallet",

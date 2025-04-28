@@ -18,7 +18,7 @@ pub fn main() -> Result<(), Box<dyn std::error::Error>> {
     let config_path = data_dir.join("config.json");
     if config_path.exists() {
         let config = config::Config::load(config_path)?;
-        let client = client::Client::new(config.spaced_rpc_url.as_ref().unwrap());
+        let client = client::Client::new(config.spaced_rpc_url.as_ref().unwrap())?;
         app::App::new(config, client).run()?;
     } else {
         let config = config::Config::new(config_path);

@@ -32,9 +32,13 @@ fn convert_empty_result<T>(result: Result<T, ClientError>) -> Result<(), String>
 }
 
 impl Client {
-    pub fn new(rpc_url: &str) -> Self {
-        let client = Arc::new(HttpClientBuilder::default().build(rpc_url).unwrap());
-        Self { client }
+    pub fn new(rpc_url: &str) -> Result<Self, String> {
+        let client = Arc::new(
+            HttpClientBuilder::default()
+                .build(rpc_url)
+                .map_err(|e| e.to_string())?,
+        );
+        Ok(Self { client })
     }
 
     pub async fn get_server_info(&self) -> Result<ServerInfo, String> {
@@ -50,6 +54,11 @@ impl Client {
         convert_result(result)
     }
 
+    pub async fn list_wallets(&self) -> Result<Vec<String>, String> {
+        let result = self.client.list_wallets().await;
+        convert_result(result)
+    }
+
     pub async fn create_wallet(&self, wallet_name: &str) -> Result<(), String> {
         let result = self.client.wallet_create(wallet_name).await;
         convert_result(result)
@@ -57,6 +66,19 @@ impl Client {
 
     pub async fn load_wallet(&self, wallet_name: &str) -> Result<(), String> {
         let result = self.client.wallet_load(wallet_name).await;
+        convert_result(result)
+    }
+
+    pub async fn export_wallet(&self, wallet_name: &str) -> Result<String, String> {
+        let result = self.client.wallet_export(wallet_name).await;
+        let result = result.map(|w| w.to_string());
+        convert_result(result)
+    }
+
+    pub async fn import_wallet(&self, wallet_string: &str) -> Result<(), String> {
+        let wallet = std::str::FromStr::from_str(wallet_string)
+            .map_err(|e: serde_json::Error| e.to_string())?;
+        let result = self.client.wallet_import(wallet).await;
         convert_result(result)
     }
 
