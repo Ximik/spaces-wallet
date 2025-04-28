@@ -604,6 +604,8 @@ impl App {
                     })
                 }
                 screen::settings::Action::CreateWallet(wallet_name) => {
+                    self.config.wallet = None;
+                    self.wallets.unset_current();
                     let client = self.client.clone();
                     Task::future(async move {
                         let result = client.create_wallet(&wallet_name).await;
@@ -612,6 +614,8 @@ impl App {
                     .chain(self.list_wallets())
                 }
                 screen::settings::Action::ImportWallet => {
+                    self.config.wallet = None;
+                    self.wallets.unset_current();
                     let client = self.client.clone();
                     Task::future(async move {
                         let path = rfd::AsyncFileDialog::new()
