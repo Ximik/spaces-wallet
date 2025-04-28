@@ -1,5 +1,5 @@
 use iced::{
-    Element, Task, exit,
+    Element, Fill, Task, exit,
     widget::{center, checkbox, column},
 };
 use serde::{Deserialize, Serialize};
@@ -120,7 +120,7 @@ impl Config {
                     )
                 ]
                 .spacing(10),
-                submit_button("Save", Some(Message::SavePress))
+                submit_button("Save", Some(Message::SavePress)).width(Fill)
             ]
             .spacing(10),
         )

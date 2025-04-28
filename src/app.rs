@@ -2,7 +2,6 @@ use iced::{
     Center, Element, Fill, Subscription, Task, Theme, clipboard, exit, time,
     widget::{Column, button, center, column, container, row, text, vertical_rule, vertical_space},
 };
-use jsonrpsee::core::tracing::client;
 use spaces_client::rpc::ServerInfo;
 use spaces_wallet::WalletInfo;
 
@@ -577,6 +576,7 @@ impl App {
                 screen::settings::Action::SetCurrentWallet(name) => {
                     self.wallets.set_current(&name);
                     self.config.wallet = Some(name);
+                    self.config.save();
                     self.list_wallets()
                 }
                 screen::settings::Action::ExportWallet(wallet_name) => {
