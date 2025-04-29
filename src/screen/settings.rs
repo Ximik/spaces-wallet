@@ -115,7 +115,8 @@ impl State {
             ]
             .spacing(10)
         ]
-        .spacing(20)
+        .padding([50, 100])
+        .spacing(10)
         .into()
     }
 }

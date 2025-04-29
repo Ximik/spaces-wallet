@@ -798,7 +798,6 @@ impl App {
                         )
                         .map(Message::SettingsScreen),
                 })
-                .padding(20)
             ])
             .into()
     }

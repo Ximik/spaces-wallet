@@ -161,13 +161,10 @@ impl State {
             TabsRow::new()
                 .add_tab("Buy", matches!(self, Self::Buy(_)), Message::BuyTabPress,)
                 .add_tab("Sell", matches!(self, Self::Sell(_)), Message::SellTabPress,),
-            text_big(match self {
-                Self::Buy(_) => "Buy space",
-                Self::Sell(_) => "Sell space",
-            }),
             match self {
                 Self::Buy(state) => {
                     column![
+                        text_big("Buy space"),
                         error_block(state.error.as_ref()),
                         Form::new(
                             "Buy",
@@ -186,6 +183,7 @@ impl State {
                 }
                 Self::Sell(state) => {
                     column![
+                        text_big("Sell space"),
                         error_block(state.error.as_ref()),
                         Form::new(
                             "Generate Listing",
@@ -225,8 +223,9 @@ impl State {
                 }
             }
             .spacing(10)
+            .padding([60, 100])
         ]
-        .spacing(20)
+        .padding([60, 0])
         .into()
     }
 }
