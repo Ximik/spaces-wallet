@@ -101,17 +101,20 @@ impl Config {
                 if let Some(rpc_url) = self.spaced_rpc_url.as_ref() {
                     let network = self.network.to_string();
                     match Client::new(rpc_url) {
-                        Ok(client) => Task::future(async move { client.get_server_info().await })
-                            .map(move |response| match response {
-                                Ok(info) => {
-                                    if info.network == network {
-                                        Message::SaveAndExit
-                                    } else {
-                                        Message::SetError("Wrong network".to_string())
+                        Ok(client) => {
+                            client
+                                .get_server_info()
+                                .map(move |response| match response {
+                                    Ok(info) => {
+                                        if info.network == network {
+                                            Message::SaveAndExit
+                                        } else {
+                                            Message::SetError("Wrong network".to_string())
+                                        }
                                     }
-                                }
-                                Err(err) => Message::SetError(err),
-                            }),
+                                    Err(err) => Message::SetError(err),
+                                })
+                        }
                         Err(err) => Task::done(Message::SetError(err)),
                     }
                 } else {

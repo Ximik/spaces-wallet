@@ -24,6 +24,7 @@ pub enum Message {
     ResetBackendPress,
     WalletFileSaved(Result<(), String>),
     WalletCreated(Result<(), String>),
+    WalletFileLoaded(Option<String>),
     WalletFileImported(Result<(), String>),
 }
 
@@ -33,7 +34,8 @@ pub enum Action {
     SetCurrentWallet(String),
     ExportWallet(String),
     CreateWallet(String),
-    ImportWallet,
+    FilePick,
+    ImportWallet(String),
     ResetBackend,
 }
 
@@ -50,13 +52,20 @@ impl State {
                 Action::None
             }
             Message::CreateWalletPress => Action::CreateWallet(self.new_wallet_name.to_string()),
-            Message::ImportWalletPress => Action::ImportWallet,
+            Message::ImportWalletPress => Action::FilePick,
             Message::ResetBackendPress => Action::ResetBackend,
             Message::WalletFileSaved(result) | Message::WalletFileImported(result) => {
                 if let Err(err) = result {
                     self.error = Some(err);
                 }
                 Action::None
+            }
+            Message::WalletFileLoaded(contents) => {
+                if let Some(contents) = contents {
+                    Action::ImportWallet(contents)
+                } else {
+                    Action::None
+                }
             }
             Message::WalletCreated(result) => {
                 if let Err(err) = result {

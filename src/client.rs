@@ -15,6 +15,7 @@ use spaces_protocol::{FullSpaceOut, bitcoin::Txid, slabel::SLabel};
 use spaces_wallet::{
     Balance, Listing,
     bitcoin::{Amount, FeeRate},
+    export::WalletExport,
     nostr::NostrEvent,
 };
 
@@ -114,13 +115,15 @@ impl Client {
     }
 
     pub fn import_wallet(&self, wallet_string: &str) -> Task<Result<String, String>> {
-        match std::str::FromStr::from_str(wallet_string) {
+        let wallet_export: Result<WalletExport, _> = std::str::FromStr::from_str(wallet_string);
+        match wallet_export {
             Ok(wallet_export) => {
                 let client = self.client.clone();
                 Task::perform(
                     async move {
+                        let label = wallet_export.label.clone();
                         let result = client.wallet_import(wallet_export).await;
-                        result.map(|_| wallet_export.label)
+                        result.map(|_| label)
                     },
                     map_result,
                 )
