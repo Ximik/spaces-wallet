@@ -4,6 +4,7 @@ mod client;
 mod config;
 mod helpers;
 mod screen;
+mod state;
 mod types;
 mod widget;
 

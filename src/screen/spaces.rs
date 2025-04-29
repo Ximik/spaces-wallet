@@ -1,5 +1,6 @@
 use crate::{
     helpers::{format_amount, height_to_future_est},
+    state::SpacesCollection,
     types::*,
     widget::{
         form::{Form, text_input},
@@ -369,7 +370,7 @@ impl State {
     pub fn view<'a>(
         &'a self,
         tip_height: u32,
-        spaces: &'a SpacesState,
+        spaces: &'a SpacesCollection,
         winning_spaces: &'a [SLabel],
         outbid_spaces: &'a [SLabel],
         owned_spaces: &'a [SLabel],

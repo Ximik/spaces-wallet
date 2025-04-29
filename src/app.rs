@@ -9,6 +9,7 @@ use crate::{
     client::*,
     config::Config,
     screen,
+    state::*,
     types::*,
     widget::icon::{Icon, text_icon},
 };
@@ -66,8 +67,8 @@ pub struct App {
     tip_height: u32,
     blocks_height: u32,
     headers_height: u32,
-    wallets: WalletsState,
-    spaces: SpacesState,
+    wallets: WalletsCollection,
+    spaces: SpacesCollection,
     home_screen: screen::home::State,
     send_screen: screen::send::State,
     receive_screen: screen::receive::State,
@@ -125,7 +126,7 @@ impl App {
     fn get_wallet_info(&self) -> Task<Message> {
         if let Some(wallet) = self.wallets.get_current() {
             self.client
-                .get_wallet_info(wallet.name.to_string())
+                .get_wallet_info(wallet.label.to_string())
                 .map(Message::WalletInfo)
         } else {
             Task::none()
@@ -135,7 +136,7 @@ impl App {
     fn get_wallet_balance(&self) -> Task<Message> {
         if let Some(wallet) = self.wallets.get_current() {
             self.client
-                .get_wallet_balance(wallet.name.to_string())
+                .get_wallet_balance(wallet.label.to_string())
                 .map(Message::WalletBalance)
         } else {
             Task::none()
@@ -145,7 +146,7 @@ impl App {
     fn get_wallet_spaces(&self) -> Task<Message> {
         if let Some(wallet) = self.wallets.get_current() {
             self.client
-                .get_wallet_spaces(wallet.name.to_string())
+                .get_wallet_spaces(wallet.label.to_string())
                 .map(Message::WalletSpaces)
         } else {
             Task::none()
@@ -156,7 +157,7 @@ impl App {
         if let Some(wallet) = self.wallets.get_current() {
             self.client
                 .get_wallet_transactions(
-                    wallet.name.to_string(),
+                    wallet.label.to_string(),
                     self.home_screen.get_transactions_limit(),
                 )
                 .map(Message::WalletTransactions)
@@ -168,7 +169,7 @@ impl App {
     fn get_wallet_address(&self, address_kind: AddressKind) -> Task<Message> {
         if let Some(wallet) = self.wallets.get_current() {
             self.client
-                .get_wallet_address(wallet.name.to_string(), address_kind)
+                .get_wallet_address(wallet.label.to_string(), address_kind)
                 .map(Message::WalletAddress)
         } else {
             Task::none()
@@ -281,7 +282,7 @@ impl App {
                     }
                     if let Some(wallet) = self.wallets.get_current() {
                         self.client
-                            .load_wallet(wallet.name.clone())
+                            .load_wallet(wallet.label.clone())
                             .map(Message::WalletLoad)
                     } else {
                         self.navigate_to(Route::Settings)
@@ -296,31 +297,40 @@ impl App {
                     Task::none()
                 }
             }
-            Message::WalletInfo(WalletResult { wallet, result }) => {
+            Message::WalletInfo(WalletResult {
+                label: wallet,
+                result,
+            }) => {
                 if let Ok(wallet_info) = result {
-                    if let Some(wallet_state) = self.wallets.get_state_mut(&wallet) {
+                    if let Some(wallet_state) = self.wallets.get_data_mut(&wallet) {
                         wallet_state.tip = wallet_info.info.tip;
                     }
                 }
                 Task::none()
             }
-            Message::WalletBalance(WalletResult { wallet, result }) => {
+            Message::WalletBalance(WalletResult {
+                label: wallet,
+                result,
+            }) => {
                 if let Ok(balance) = result {
-                    if let Some(wallet_state) = self.wallets.get_state_mut(&wallet) {
+                    if let Some(wallet_state) = self.wallets.get_data_mut(&wallet) {
                         wallet_state.balance = balance.balance;
                     }
                 }
                 Task::none()
             }
-            Message::WalletSpaces(WalletResult { wallet, result }) => {
+            Message::WalletSpaces(WalletResult {
+                label: wallet,
+                result,
+            }) => {
                 if let Ok(spaces) = result {
-                    if let Some(wallet_state) = self.wallets.get_state_mut(&wallet) {
+                    if let Some(wallet_state) = self.wallets.get_data_mut(&wallet) {
                         let mut collect = |spaces: Vec<FullSpaceOut>| -> Vec<SLabel> {
                             spaces
                                 .into_iter()
                                 .map(|out| {
                                     let name = out.spaceout.space.as_ref().unwrap().name.clone();
-                                    self.spaces.insert(name.clone(), Some(out));
+                                    self.spaces.set(name.clone(), Some(out));
                                     name
                                 })
                                 .collect()
@@ -332,18 +342,24 @@ impl App {
                 }
                 Task::none()
             }
-            Message::WalletTransactions(WalletResult { wallet, result }) => {
+            Message::WalletTransactions(WalletResult {
+                label: wallet,
+                result,
+            }) => {
                 if let Ok(transactions) = result {
-                    if let Some(wallet_state) = self.wallets.get_state_mut(&wallet) {
+                    if let Some(wallet_state) = self.wallets.get_data_mut(&wallet) {
                         wallet_state.transactions = transactions;
                     }
                 }
                 Task::none()
             }
-            Message::WalletAddress(WalletResult { wallet, result }) => {
+            Message::WalletAddress(WalletResult {
+                label: wallet,
+                result,
+            }) => {
                 if let Ok((address_kind, address)) = result {
-                    if let Some(wallet_state) = self.wallets.get_state_mut(&wallet) {
-                        let address = Some(AddressState::new(address));
+                    if let Some(wallet_state) = self.wallets.get_data_mut(&wallet) {
+                        let address = Some(AddressData::new(address));
                         match address_kind {
                             AddressKind::Coin => wallet_state.coin_address = address,
                             AddressKind::Space => wallet_state.space_address = address,
@@ -354,7 +370,7 @@ impl App {
             }
             Message::SpaceInfo(result) => {
                 if let Ok((slabel, out)) = result {
-                    self.spaces.insert(slabel, out)
+                    self.spaces.set(slabel, out)
                 }
                 Task::none()
             }
@@ -367,7 +383,7 @@ impl App {
                 screen::home::Action::BumpFee { txid, fee_rate } => self
                     .client
                     .bump_fee(
-                        self.wallets.get_current().unwrap().name.clone(),
+                        self.wallets.get_current().unwrap().label.clone(),
                         txid,
                         fee_rate,
                     )
@@ -386,7 +402,7 @@ impl App {
                 } => self
                     .client
                     .send_coins(
-                        self.wallets.get_current().unwrap().name.clone(),
+                        self.wallets.get_current().unwrap().label.clone(),
                         recipient,
                         amount,
                         fee_rate,
@@ -403,7 +419,7 @@ impl App {
                 } => self
                     .client
                     .send_space(
-                        self.wallets.get_current().unwrap().name.clone(),
+                        self.wallets.get_current().unwrap().label.clone(),
                         recipient,
                         slabel,
                         fee_rate,
@@ -430,7 +446,7 @@ impl App {
                 } => self
                     .client
                     .open_space(
-                        self.wallets.get_current().unwrap().name.clone(),
+                        self.wallets.get_current().unwrap().label.clone(),
                         slabel,
                         amount,
                         fee_rate,
@@ -447,7 +463,7 @@ impl App {
                 } => self
                     .client
                     .bid_space(
-                        self.wallets.get_current().unwrap().name.clone(),
+                        self.wallets.get_current().unwrap().label.clone(),
                         slabel,
                         amount,
                         fee_rate,
@@ -460,7 +476,7 @@ impl App {
                 screen::spaces::Action::RegisterSpace { slabel, fee_rate } => self
                     .client
                     .register_space(
-                        self.wallets.get_current().unwrap().name.clone(),
+                        self.wallets.get_current().unwrap().label.clone(),
                         slabel,
                         fee_rate,
                     )
@@ -472,7 +488,7 @@ impl App {
                 screen::spaces::Action::RenewSpace { slabel, fee_rate } => self
                     .client
                     .renew_space(
-                        self.wallets.get_current().unwrap().name.clone(),
+                        self.wallets.get_current().unwrap().label.clone(),
                         slabel,
                         fee_rate,
                     )
@@ -488,7 +504,7 @@ impl App {
                 screen::market::Action::Buy { listing, fee_rate } => self
                     .client
                     .buy_space(
-                        self.wallets.get_current().unwrap().name.clone(),
+                        self.wallets.get_current().unwrap().label.clone(),
                         listing,
                         fee_rate,
                     )
@@ -496,7 +512,7 @@ impl App {
                 screen::market::Action::Sell { slabel, price } => self
                     .client
                     .sell_space(
-                        self.wallets.get_current().unwrap().name.clone(),
+                        self.wallets.get_current().unwrap().label.clone(),
                         slabel,
                         price,
                     )
@@ -529,7 +545,7 @@ impl App {
                 screen::sign::Action::Sign(slabel, event) => self
                     .client
                     .sign_event(
-                        self.wallets.get_current().unwrap().name.clone(),
+                        self.wallets.get_current().unwrap().label.clone(),
                         slabel,
                         event,
                     )
@@ -790,7 +806,7 @@ impl App {
                         .settings_screen
                         .view(
                             self.wallets.get_wallets(),
-                            self.wallets.get_current().map(|w| w.name),
+                            self.wallets.get_current().map(|w| w.label),
                         )
                         .map(Message::SettingsScreen),
                 })

@@ -35,13 +35,13 @@ fn map_result<T>(result: Result<T, ClientError>) -> ClientResult<T> {
 
 #[derive(Debug, Clone)]
 pub struct WalletResult<T> {
-    pub wallet: String,
+    pub label: String,
     pub result: Result<T, String>,
 }
 
-fn map_wallet_result<T>((wallet, result): (String, Result<T, ClientError>)) -> WalletResult<T> {
+fn map_wallet_result<T>((label, result): (String, Result<T, ClientError>)) -> WalletResult<T> {
     WalletResult {
-        wallet,
+        label,
         result: map_result(result),
     }
 }

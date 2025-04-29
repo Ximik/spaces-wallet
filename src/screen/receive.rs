@@ -1,4 +1,5 @@
 use crate::{
+    state::AddressData,
     types::*,
     widget::{
         icon::{Icon, button_icon},
@@ -45,8 +46,8 @@ impl State {
 
     pub fn view<'a>(
         &self,
-        coin_address: Option<&'a AddressState>,
-        space_address: Option<&'a AddressState>,
+        coin_address: Option<&'a AddressData>,
+        space_address: Option<&'a AddressData>,
     ) -> Element<'a, Message> {
         let address = match self.0 {
             AddressKind::Coin => coin_address,
