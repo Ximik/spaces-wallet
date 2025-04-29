@@ -181,7 +181,7 @@ impl WalletsState {
         })
     }
 
-    pub fn get_mut(&mut self, name: &str) -> Option<&mut WalletState> {
+    pub fn get_state_mut(&mut self, name: &str) -> Option<&mut WalletState> {
         self.wallets.get_mut(name).and_then(|state| state.as_mut())
     }
 }
