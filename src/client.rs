@@ -7,10 +7,10 @@ use spaces_client::rpc::{
     BidParams, OpenParams, RegisterParams, RpcClient, RpcWalletRequest, RpcWalletTxBuilder,
     SendCoinsParams, ServerInfo, TransferSpacesParams,
 };
-use spaces_client::wallets::{AddressKind, ListSpacesResponse, TxInfo};
+use spaces_client::wallets::{AddressKind, ListSpacesResponse, TxInfo, WalletInfoWithProgress};
 use spaces_protocol::{FullSpaceOut, bitcoin::Txid, slabel::SLabel};
 use spaces_wallet::{
-    Balance, Listing, WalletInfo,
+    Balance, Listing,
     bitcoin::{Amount, FeeRate},
     nostr::NostrEvent,
 };
@@ -82,7 +82,10 @@ impl Client {
         convert_result(result)
     }
 
-    pub async fn get_wallet_info(&self, wallet_name: &str) -> Result<WalletInfo, String> {
+    pub async fn get_wallet_info(
+        &self,
+        wallet_name: &str,
+    ) -> Result<WalletInfoWithProgress, String> {
         let result = self.client.wallet_get_info(wallet_name).await;
         convert_result(result)
     }

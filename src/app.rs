@@ -2,8 +2,7 @@ use iced::{
     Center, Element, Fill, Subscription, Task, Theme, clipboard, exit, time,
     widget::{Column, button, center, column, container, row, text, vertical_rule, vertical_space},
 };
-use spaces_client::rpc::ServerInfo;
-use spaces_wallet::WalletInfo;
+use spaces_client::{rpc::ServerInfo, wallets::WalletInfoWithProgress};
 
 use crate::{
     branding::*,
@@ -33,7 +32,7 @@ enum Message {
     ServerInfo(Result<ServerInfo, String>),
     ListWallets(Result<Vec<String>, String>),
     WalletLoad(Result<String, String>),
-    WalletInfo(Result<WalletInfo, String>),
+    WalletInfo(Result<WalletInfoWithProgress, String>),
     WalletBalance(String, Result<Balance, String>),
     WalletSpaces(String, Result<ListSpacesResponse, String>),
     WalletTransactions(String, Result<Vec<TxInfo>, String>),
@@ -327,8 +326,8 @@ impl App {
             }
             Message::WalletInfo(result) => {
                 if let Ok(wallet_info) = result {
-                    if let Some(wallet_state) = self.wallets.get_mut(&wallet_info.label) {
-                        wallet_state.tip = wallet_info.tip;
+                    if let Some(wallet_state) = self.wallets.get_mut(&wallet_info.info.label) {
+                        wallet_state.tip = wallet_info.info.tip;
                     }
                 }
                 Task::none()
