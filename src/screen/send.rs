@@ -140,60 +140,65 @@ impl State {
                     matches!(self.asset_kind, AddressKind::Space),
                     Message::TabPress(AddressKind::Space)
                 ),
-            text_big(match self.asset_kind {
-                AddressKind::Coin => "Send coins",
-                AddressKind::Space => "Send space",
-            }),
-            error_block(self.error.as_ref()),
             match self.asset_kind {
-                AddressKind::Coin => Form::new(
-                    "Send",
-                    (recipient_from_str(&self.recipient).is_some()
-                        && amount_from_str(&self.amount).is_some()
-                        && fee_rate_from_str(&self.fee_rate).is_some())
-                    .then_some(Message::SendCoinsSubmit),
-                )
-                .add_text_input("Amount", "sat", &self.amount, Message::AmountInput)
-                .add_text_input(
-                    "To",
-                    "bitcoin address or @space",
-                    &self.recipient,
-                    Message::RecipientInput,
-                )
-                .add_text_input(
-                    "Fee rate",
-                    "sat/vB (auto if empty)",
-                    &self.fee_rate,
-                    Message::FeeRateInput,
-                ),
-                AddressKind::Space => Form::new(
-                    "Send",
-                    (recipient_from_str(&self.recipient).is_some()
-                        && self.slabel.is_some()
-                        && fee_rate_from_str(&self.fee_rate).is_some())
-                    .then_some(Message::SendSpaceSubmit),
-                )
-                .add_pick_list(
-                    "Space",
-                    owned_spaces.as_slice(),
-                    self.slabel.as_ref(),
-                    Message::SLabelSelect
-                )
-                .add_text_input(
-                    "To",
-                    "bitcoin address or @space",
-                    &self.recipient,
-                    Message::RecipientInput,
-                )
-                .add_text_input(
-                    "Fee rate",
-                    "sat/vB (auto if empty)",
-                    &self.fee_rate,
-                    Message::FeeRateInput,
-                ),
+                AddressKind::Coin => column![
+                    text_big("Send coins"),
+                    error_block(self.error.as_ref()),
+                    Form::new(
+                        "Send",
+                        (recipient_from_str(&self.recipient).is_some()
+                            && amount_from_str(&self.amount).is_some()
+                            && fee_rate_from_str(&self.fee_rate).is_some())
+                        .then_some(Message::SendCoinsSubmit),
+                    )
+                    .add_text_input("Amount", "sat", &self.amount, Message::AmountInput)
+                    .add_text_input(
+                        "To",
+                        "bitcoin address or @space",
+                        &self.recipient,
+                        Message::RecipientInput,
+                    )
+                    .add_text_input(
+                        "Fee rate",
+                        "sat/vB (auto if empty)",
+                        &self.fee_rate,
+                        Message::FeeRateInput,
+                    )
+                ],
+                AddressKind::Space => column![
+                    text_big("Send space"),
+                    error_block(self.error.as_ref()),
+                    Form::new(
+                        "Send",
+                        (recipient_from_str(&self.recipient).is_some()
+                            && self.slabel.is_some()
+                            && fee_rate_from_str(&self.fee_rate).is_some())
+                        .then_some(Message::SendSpaceSubmit),
+                    )
+                    .add_pick_list(
+                        "Space",
+                        owned_spaces.as_slice(),
+                        self.slabel.as_ref(),
+                        Message::SLabelSelect
+                    )
+                    .add_text_input(
+                        "To",
+                        "bitcoin address or @space",
+                        &self.recipient,
+                        Message::RecipientInput,
+                    )
+                    .add_text_input(
+                        "Fee rate",
+                        "sat/vB (auto if empty)",
+                        &self.fee_rate,
+                        Message::FeeRateInput,
+                    ),
+                ],
             }
+            .spacing(10)
+            .padding([60, 100])
         ]
-        .spacing(10)
+        .padding([60, 0])
         .into()
     }
 }

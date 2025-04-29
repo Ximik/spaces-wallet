@@ -300,6 +300,7 @@ impl State {
                     ]
                     .spacing(20)
                 ]
+                .padding(20)
                 .spacing(20)
                 .into()
             } else {
@@ -308,6 +309,7 @@ impl State {
         } else {
             column![
                 column![text_big("Balance"), text(format_amount(balance)),]
+                    .padding([30, 0])
                     .spacing(10)
                     .width(Fill)
                     .align_x(Center),
@@ -504,11 +506,11 @@ impl State {
                     };
                     element
                 }]
+                .padding([20, 20])
                 .spacing(10)
                 .height(Fill)
                 .width(Fill),
             ]
-            .spacing(20)
             .height(Fill)
             .width(Fill)
             .into()

@@ -100,8 +100,9 @@ impl State {
                 .align_x(Center),
             ]
             .spacing(10)
+            .padding([60, 100])
         }))
-        .spacing(20)
+        .padding([60, 0])
         .into()
     }
 }

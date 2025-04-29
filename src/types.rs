@@ -165,6 +165,10 @@ impl WalletsState {
         }
     }
 
+    pub fn unset_current(&mut self) {
+        self.current = None;
+    }
+
     pub fn get_current(&self) -> Option<WalletEntry<'_>> {
         self.current.as_ref().and_then(|current_name| {
             self.wallets

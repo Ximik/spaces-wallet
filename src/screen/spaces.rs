@@ -416,6 +416,7 @@ impl State {
                     Some(Some(Covenant::Reserved)) => center(text("The space is locked")).into(),
                 },
             ]
+            .padding(20)
             .spacing(20)
         } else {
             let mut slabels: Vec<&SLabel> = if self.search.is_empty() {
@@ -556,48 +557,53 @@ impl State {
                 .into()
             };
 
-            Column::new()
-                .push(container(
-                    text_input("space", &self.search)
-                        .icon(text_input_icon(Icon::At, None, 10.0))
-                        .on_input(Message::SearchInput)
-                        .font(font::Font::MONOSPACE)
-                        .padding(10),
-                ))
-                .push_maybe(if self.search.is_empty() {
-                    Some(
-                        TabsRow::new()
-                            .add_tab(
-                                "Owned",
-                                self.filter == Filter::Owned,
-                                Message::FilterPress(Filter::Owned),
-                            )
-                            .add_tab(
-                                "Bidding",
-                                self.filter == Filter::Bidding,
-                                Message::FilterPress(Filter::Bidding),
-                            ),
+            column![
+                Column::new()
+                    .push(
+                        container(
+                            text_input("space", &self.search)
+                                .icon(text_input_icon(Icon::At, None, 10.0))
+                                .on_input(Message::SearchInput)
+                                .font(font::Font::MONOSPACE)
+                                .size(20)
+                                .padding([10, 20]),
+                        )
+                        .padding([30, 100]),
                     )
-                } else {
-                    None
-                })
-                .push(
-                    scrollable(
-                        Column::new()
-                            .push_maybe(
-                                slabel_from_str(&self.search)
-                                    .filter(|slabel| !slabels.contains(&slabel))
-                                    .map(|slabel| card(&slabel)),
-                            )
-                            .extend(slabels.into_iter().map(card))
-                            .push(Space::with_height(5))
-                            .spacing(5),
-                    )
-                    .spacing(10)
-                    .height(Fill)
-                    .width(Fill),
+                    .push_maybe(if self.search.is_empty() {
+                        Some(
+                            TabsRow::new()
+                                .add_tab(
+                                    "Owned",
+                                    self.filter == Filter::Owned,
+                                    Message::FilterPress(Filter::Owned),
+                                )
+                                .add_tab(
+                                    "Bidding",
+                                    self.filter == Filter::Bidding,
+                                    Message::FilterPress(Filter::Bidding),
+                                ),
+                        )
+                    } else {
+                        None
+                    }),
+                scrollable(
+                    Column::new()
+                        .push_maybe(
+                            slabel_from_str(&self.search)
+                                .filter(|slabel| !slabels.contains(&slabel))
+                                .map(|slabel| card(&slabel)),
+                        )
+                        .extend(slabels.into_iter().map(card))
+                        .push(Space::with_height(5))
+                        .spacing(5),
                 )
-                .spacing(20)
+                .spacing(10)
+                .height(Fill)
+                .width(Fill),
+            ]
+            .padding([20, 20])
+            .spacing(50)
         }
         .into()
     }

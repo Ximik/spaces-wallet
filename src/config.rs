@@ -82,7 +82,11 @@ impl Config {
         self.error = None;
         match message {
             Message::SpacedRpcUrlToggle(some) => {
-                self.spaced_rpc_url = if some { Some(String::new()) } else { None };
+                self.spaced_rpc_url = if some {
+                    Some("http://127.0.0.1:7225".into())
+                } else {
+                    None
+                };
                 Task::none()
             }
             Message::SpacedRpcUrlInput(spaced_rpc_url) => {
