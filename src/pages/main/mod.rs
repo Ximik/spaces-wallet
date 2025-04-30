@@ -12,14 +12,13 @@ use iced::{
 };
 
 use crate::{
-    branding::*,
     client::*,
     state::*,
     widget::icon::{Icon, text_icon},
 };
 
 #[derive(Debug, Clone)]
-enum Route {
+pub enum Route {
     Home,
     Send,
     Receive,
@@ -173,10 +172,10 @@ impl State {
     fn navigate_to(&mut self, route: Route) -> Task<Message> {
         match route {
             Route::Home => {
-                if self.screen == Home {
+                if self.screen == Screen::Home {
                     self.home_screen.reset();
                 } else {
-                    self.screen = Home;
+                    self.screen = Screen::Home;
                 }
                 Task::batch([
                     self.get_wallet_balance(),
@@ -185,21 +184,21 @@ impl State {
                 ])
             }
             Route::Send => {
-                self.screen = Send;
+                self.screen = Screen::Send;
                 self.get_wallet_spaces()
             }
             Route::Receive => {
-                self.screen = Receive;
+                self.screen = Screen::Receive;
                 Task::batch([
                     self.get_wallet_address(AddressKind::Coin),
                     self.get_wallet_address(AddressKind::Space),
                 ])
             }
             Route::Spaces => {
-                if self.screen == Spaces {
+                if self.screen == Screen::Spaces {
                     self.spaces_screen.reset();
                 } else {
-                    self.screen = Spaces;
+                    self.screen = Screen::Spaces;
                 }
                 if let Some(slabel) = self.spaces_screen.get_slabel() {
                     self.get_space_info(slabel)
@@ -208,20 +207,20 @@ impl State {
                 }
             }
             Route::Space(slabel) => {
-                self.screen = Spaces;
+                self.screen = Screen::Spaces;
                 self.spaces_screen.set_slabel(&slabel);
                 self.get_space_info(slabel)
             }
             Route::Market => {
-                self.screen = Market;
+                self.screen = Screen::Market;
                 self.get_wallet_spaces()
             }
             Route::Sign => {
-                self.screen = Sign;
+                self.screen = Screen::Sign;
                 self.get_wallet_spaces()
             }
             Route::Settings => {
-                self.screen = Settings;
+                self.screen = Screen::Settings;
                 Task::none()
             }
         }
@@ -232,11 +231,11 @@ impl State {
             Message::Tick => {
                 let mut tasks = vec![self.get_server_info(), self.get_wallet_info()];
                 match self.screen {
-                    Home => {
+                    Screen::Home => {
                         tasks.push(self.get_wallet_balance());
                         tasks.push(self.get_wallet_transactions());
                     }
-                    Spaces => {
+                    Screen::Spaces => {
                         tasks.push(self.get_wallet_spaces());
                         if let Some(slabel) = self.spaces_screen.get_slabel() {
                             tasks.push(self.get_space_info(slabel));

@@ -1,10 +1,7 @@
 use iced::{Color, Element, Subscription, Task, application, theme, window};
 use once_cell::sync::Lazy;
 
-use crate::{
-    pages::*,
-    state::{self, Config},
-};
+use crate::{pages::*, state::Config};
 
 pub static WINDOW_TITLE: &str = "Akron";
 
@@ -46,7 +43,7 @@ enum Message {
 }
 
 impl State {
-    fn run(config: Config) -> iced::Result {
+    pub fn run(config: Config) -> iced::Result {
         let (state, task) = setup::State::run(config);
         let state = Self::Setup(state);
         let task = task.map(Message::Setup);

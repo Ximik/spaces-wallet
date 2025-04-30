@@ -52,6 +52,7 @@ impl State {
         (
             Self {
                 config,
+                client: None,
                 rpc_url,
                 network,
                 error: None,
@@ -61,7 +62,7 @@ impl State {
     }
 
     pub fn split(self) -> (Config, Client) {
-        return (self.config, self.client.unwrap());
+        (self.config, self.client.unwrap())
     }
 
     pub fn update(&mut self, message: Message) -> Action {
@@ -148,7 +149,8 @@ impl State {
                 .spacing(10),
                 center(submit_button(
                     "Connect",
-                    if self.rpc_url.as_ref().is_some_and(|s| s.is_empty()) {
+                    if self.client.is_some() || self.rpc_url.as_ref().is_some_and(|s| s.is_empty())
+                    {
                         None
                     } else {
                         Some(Message::Connect)
