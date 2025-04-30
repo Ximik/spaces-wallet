@@ -451,19 +451,20 @@ dependencies = [
 
 [[package]]
 name = "bincode"
-version = "2.0.0-rc.3"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "f11ea1a0346b94ef188834a65c068a03aec181c94896d481d7a0a40d85b0ce95"
+checksum = "36eaf5d7b090263e8150820482d5d93cd964a81e4019913c972f4edcc6edb740"
 dependencies = [
  "bincode_derive",
  "serde",
+ "unty",
 ]
 
 [[package]]
 name = "bincode_derive"
-version = "2.0.0-rc.3"
+version = "2.0.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "7e30759b3b99a1b802a7a3aa21c85c3ded5c28e1c83170d82d70f08bbf7f3e4c"
+checksum = "bf95709a440f45e986983918d0e8a1f30a9b1df04918fc828670606804ac3c09"
 dependencies = [
  "virtue",
 ]
@@ -3961,15 +3962,6 @@ dependencies = [
 ]
 
 [[package]]
-name = "serde_spanned"
-version = "0.6.8"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "87607cb1398ed59d48732e575a4c28a7a8ebf2454b964fe3f224f2afc07909e1"
-dependencies = [
- "serde",
-]
-
-[[package]]
 name = "serde_urlencoded"
 version = "0.7.1"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4182,8 +4174,8 @@ dependencies = [
 
 [[package]]
 name = "spacedb"
-version = "0.0.5"
-source = "git+https://github.com/spacesprotocol/spacedb#d8a2281e360b471f218e7d9756c0c35dc0c4a536"
+version = "0.0.6"
+source = "git+https://github.com/spacesprotocol/spacedb#8db1e6925dfb273a1d6a66aad2f026feac718887"
 dependencies = [
  "bincode",
  "hex",
@@ -4194,7 +4186,7 @@ dependencies = [
 [[package]]
 name = "spaces_client"
 version = "0.0.7"
-source = "git+https://github.com/Ximik/spaces.git#7e44050cad4a49c0ca80b46eed58e61e03dea228"
+source = "git+https://github.com/Ximik/spaces.git#612970d5a5a6f43c4ccb3742558e338f1e2dbe18"
 dependencies = [
  "anyhow",
  "base64 0.22.1",
@@ -4218,14 +4210,13 @@ dependencies = [
  "tabled",
  "threadpool",
  "tokio",
- "toml",
  "tower",
 ]
 
 [[package]]
 name = "spaces_protocol"
 version = "0.0.7"
-source = "git+https://github.com/Ximik/spaces.git#7e44050cad4a49c0ca80b46eed58e61e03dea228"
+source = "git+https://github.com/Ximik/spaces.git#612970d5a5a6f43c4ccb3742558e338f1e2dbe18"
 dependencies = [
  "bincode",
  "bitcoin",
@@ -4236,7 +4227,7 @@ dependencies = [
 [[package]]
 name = "spaces_wallet"
 version = "0.0.7"
-source = "git+https://github.com/Ximik/spaces.git#7e44050cad4a49c0ca80b46eed58e61e03dea228"
+source = "git+https://github.com/Ximik/spaces.git#612970d5a5a6f43c4ccb3742558e338f1e2dbe18"
 dependencies = [
  "anyhow",
  "bdk_wallet",
@@ -4573,25 +4564,10 @@ dependencies = [
 ]
 
 [[package]]
-name = "toml"
-version = "0.8.19"
-source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "a1ed1f98e3fdc28d6d910e6737ae6ab1a93bf1985935a1193e68f93eeb68d24e"
-dependencies = [
- "serde",
- "serde_spanned",
- "toml_datetime",
- "toml_edit",
-]
-
-[[package]]
 name = "toml_datetime"
 version = "0.6.8"
 source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "0dd7358ecb8fc2f8d014bf86f6f638ce72ba252a2c3a2572f2a795f1d23efb41"
-dependencies = [
- "serde",
-]
 
 [[package]]
 name = "toml_edit"
@@ -4600,8 +4576,6 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "4ae48d6208a266e853d946088ed816055e556cc6028c5e8e2b84d9fa5dd7c7f5"
 dependencies = [
  "indexmap",
- "serde",
- "serde_spanned",
  "toml_datetime",
  "winnow",
 ]
@@ -4788,6 +4762,12 @@ source = "registry+https://github.com/rust-lang/crates.io-index"
 checksum = "8ecb6da28b8a351d773b68d5825ac39017e680750f980f3a1a85cd8dd28a47c1"
 
 [[package]]
+name = "unty"
+version = "0.0.4"
+source = "registry+https://github.com/rust-lang/crates.io-index"
+checksum = "6d49784317cd0d1ee7ec5c716dd598ec5b4483ea832a2dced265471cc0f690ae"
+
+[[package]]
 name = "url"
 version = "2.5.2"
 source = "registry+https://github.com/rust-lang/crates.io-index"
@@ -4825,9 +4805,9 @@ checksum = "0b928f33d975fc6ad9f86c8f283853ad26bdd5b10b7f1542aa2fa15e2289105a"
 
 [[package]]
 name = "virtue"
-version = "0.0.13"
+version = "0.0.18"
 source = "registry+https://github.com/rust-lang/crates.io-index"
-checksum = "9dcc60c0624df774c82a0ef104151231d37da4962957d691c011c852b2473314"
+checksum = "051eb1abcf10076295e815102942cc58f9d5e3b4560e46e53c21e8ff6f3af7b1"
 
 [[package]]
 name = "walkdir"
