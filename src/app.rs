@@ -1,7 +1,7 @@
 use iced::{Color, Element, Subscription, Task, application, theme, window};
 use once_cell::sync::Lazy;
 
-use crate::{pages::*, state::Config};
+use crate::{Config, pages::*};
 
 pub static WINDOW_TITLE: &str = "Akron";
 

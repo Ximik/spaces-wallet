@@ -1,44 +1,8 @@
 use iced::widget::qr_code::Data as QrCode;
-use serde::{Deserialize, Serialize};
-use std::{fs, path::PathBuf};
 
-use spaces_client::{config::ExtendedNetwork, wallets::TxInfo};
+use spaces_client::wallets::TxInfo;
 use spaces_protocol::{Covenant, FullSpaceOut, slabel::SLabel};
 use spaces_wallet::bitcoin::{Amount, OutPoint};
-
-#[derive(Debug, Clone, Serialize, Deserialize)]
-pub struct Config {
-    #[serde(skip)]
-    path: PathBuf,
-    pub spaced_rpc_url: Option<String>,
-    pub network: ExtendedNetwork,
-    pub wallet: Option<String>,
-}
-
-impl Config {
-    pub fn load(path: PathBuf) -> (Self, bool) {
-        let config: Option<Self> = fs::read_to_string(&path)
-            .ok()
-            .and_then(|c| serde_json::from_str(&c).ok());
-        match config {
-            Some(config) => (Self { path, ..config }, true),
-            None => (
-                Self {
-                    path,
-                    spaced_rpc_url: None,
-                    network: ExtendedNetwork::Mainnet,
-                    wallet: None,
-                },
-                false,
-            ),
-        }
-    }
-
-    pub fn save(&self) {
-        let config = serde_json::to_string_pretty(&self).unwrap();
-        fs::write(&self.path, config).unwrap();
-    }
-}
 
 #[derive(Debug)]
 pub struct SpaceData {

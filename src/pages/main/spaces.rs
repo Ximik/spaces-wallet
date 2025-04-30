@@ -1,20 +1,21 @@
+use iced::{
+    Center, Element, Fill, font,
+    widget::{
+        Column, Row, Space, button, center, column, container, horizontal_rule, row, scrollable,
+        text,
+    },
+};
+
+use super::state::SpacesCollection;
 use crate::{
     client::*,
     helpers::*,
-    state::SpacesCollection,
     widget::{
         form::{Form, text_input},
         icon::{Icon, button_icon, text_icon, text_input_icon},
         rect,
         tabs::TabsRow,
         text::{error_block, text_big, text_bold, text_monospace, text_monospace_bold, text_small},
-    },
-};
-use iced::{
-    Center, Element, Fill, font,
-    widget::{
-        Column, Row, Space, button, center, column, container, horizontal_rule, row, scrollable,
-        text,
     },
 };
 

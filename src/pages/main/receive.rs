@@ -1,15 +1,16 @@
+use iced::{
+    Border, Center, Element, Fill, Theme,
+    widget::{column, container, qr_code, row, text},
+};
+
+use super::state::AddressData;
 use crate::{
     client::*,
-    state::AddressData,
     widget::{
         icon::{Icon, button_icon},
         tabs::TabsRow,
         text::{text_big, text_monospace},
     },
-};
-use iced::{
-    Border, Center, Element, Fill, Theme,
-    widget::{column, container, qr_code, row, text},
 };
 
 #[derive(Debug)]

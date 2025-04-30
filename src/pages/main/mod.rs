@@ -5,6 +5,7 @@ mod send;
 mod settings;
 mod sign;
 mod spaces;
+mod state;
 
 use iced::{
     Center, Element, Fill, Subscription, Task, Theme, clipboard, time,
@@ -12,8 +13,8 @@ use iced::{
 };
 
 use crate::{
+    Config,
     client::*,
-    state::*,
     widget::icon::{Icon, text_icon},
 };
 
@@ -36,8 +37,8 @@ pub struct State {
     tip_height: u32,
     blocks_height: u32,
     headers_height: u32,
-    wallets: WalletsCollection,
-    spaces: SpacesCollection,
+    wallets: state::WalletsCollection,
+    spaces: state::SpacesCollection,
     home_screen: home::State,
     send_screen: send::State,
     receive_screen: receive::State,
@@ -351,7 +352,7 @@ impl State {
             }) => {
                 if let Ok((address_kind, address)) = result {
                     if let Some(wallet_state) = self.wallets.get_data_mut(&wallet) {
-                        let address = Some(AddressData::new(address));
+                        let address = Some(state::AddressData::new(address));
                         match address_kind {
                             AddressKind::Coin => wallet_state.coin_address = address,
                             AddressKind::Space => wallet_state.space_address = address,

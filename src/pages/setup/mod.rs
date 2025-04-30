@@ -6,8 +6,8 @@ use iced::{
 use spaces_client::config::ExtendedNetwork;
 
 use crate::{
+    Config,
     client::{Client, ClientResult, ServerInfo},
-    state::Config,
     widget::{
         form::{pick_list, submit_button, text_input, text_label},
         text::error_block,
