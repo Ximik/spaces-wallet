@@ -14,6 +14,6 @@ pub fn main() -> iced::Result {
     fs::create_dir_all(data_dir).unwrap();
 
     let config_path = data_dir.join("config.json");
-    let config = state::Config::load(config_path);
-    app::State::run(config)
+    let (config, config_existing) = state::Config::load(config_path);
+    app::State::run(config, config_existing)
 }

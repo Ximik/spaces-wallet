@@ -10,45 +10,33 @@ use spaces_wallet::bitcoin::{Amount, OutPoint};
 pub struct Config {
     #[serde(skip)]
     path: PathBuf,
-    #[serde(skip)]
-    new: bool,
     pub spaced_rpc_url: Option<String>,
     pub network: ExtendedNetwork,
     pub wallet: Option<String>,
 }
 
 impl Config {
-    pub fn load(path: PathBuf) -> Self {
+    pub fn load(path: PathBuf) -> (Self, bool) {
         let config: Option<Self> = fs::read_to_string(&path)
             .ok()
             .and_then(|c| serde_json::from_str(&c).ok());
         match config {
-            Some(config) => Self {
-                path,
-                new: false,
-                ..config
-            },
-            None => Self {
-                path,
-                new: true,
-                spaced_rpc_url: None,
-                network: ExtendedNetwork::Mainnet,
-                wallet: None,
-            },
+            Some(config) => (Self { path, ..config }, true),
+            None => (
+                Self {
+                    path,
+                    spaced_rpc_url: None,
+                    network: ExtendedNetwork::Mainnet,
+                    wallet: None,
+                },
+                false,
+            ),
         }
-    }
-
-    pub fn is_new(&self) -> bool {
-        self.new
     }
 
     pub fn save(&self) {
         let config = serde_json::to_string_pretty(&self).unwrap();
         fs::write(&self.path, config).unwrap();
-    }
-
-    pub fn remove(&self) {
-        fs::remove_file(&self.path).unwrap();
     }
 }
 

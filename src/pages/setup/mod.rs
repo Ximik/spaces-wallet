@@ -33,21 +33,26 @@ pub enum Message {
 }
 
 pub enum Action {
-    None,
-    Exit,
+    Exit(Config, Client),
     Task(Task<Message>),
+}
+
+impl Action {
+    fn none() -> Action {
+        Action::Task(Task::none())
+    }
 }
 
 const DEFAULT_RPC_URL: &str = "http://127.0.0.1:7225";
 
 impl State {
-    pub fn run(config: Config) -> (Self, Task<Message>) {
+    pub fn run(config: Config, autoload: bool) -> (Self, Task<Message>) {
         let rpc_url = config.spaced_rpc_url.clone();
         let network = config.network;
-        let task = if config.is_new() {
-            Task::none()
-        } else {
+        let task = if autoload {
             Task::done(Message::Connect)
+        } else {
+            Task::none()
         };
         (
             Self {
@@ -70,15 +75,15 @@ impl State {
                 } else {
                     None
                 };
-                Action::None
+                Action::none()
             }
             Message::UrlInput(spaced_rpc_url) => {
                 self.rpc_url = Some(spaced_rpc_url);
-                Action::None
+                Action::none()
             }
             Message::NetworkSelect(network) => {
                 self.network = network;
-                Action::None
+                Action::none()
             }
             Message::Connect => {
                 if let Some(rpc_url) = self.rpc_url.as_ref() {
@@ -98,20 +103,25 @@ impl State {
             Message::ConnectResult(result) => match result {
                 Ok(info) => {
                     if info.network == self.network.to_string() {
-                        self.config.spaced_rpc_url = self.rpc_url.clone();
-                        self.config.network = self.network;
+                        if self.config.spaced_rpc_url != self.rpc_url
+                            || self.config.network != self.network
+                        {
+                            self.config.spaced_rpc_url = self.rpc_url.clone();
+                            self.config.network = self.network;
+                            self.config.wallet = None;
+                        }
                         self.config.save();
-                        Action::Exit
+                        Action::Exit(self.config.clone(), self.client.take().unwrap())
                     } else {
                         self.client = None;
                         self.error = Some("Wrong network".to_string());
-                        Action::None
+                        Action::none()
                     }
                 }
                 Err(err) => {
                     self.client = None;
                     self.error = Some(err);
-                    Action::None
+                    Action::none()
                 }
             },
         }
@@ -158,9 +168,5 @@ impl State {
         )
         .padding(100)
         .into()
-    }
-
-    pub fn get_config_and_client(&mut self) -> (Config, Client) {
-        (self.config.clone(), self.client.take().unwrap())
     }
 }

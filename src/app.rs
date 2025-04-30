@@ -43,8 +43,8 @@ enum Message {
 }
 
 impl State {
-    pub fn run(config: Config) -> iced::Result {
-        let (state, task) = setup::State::run(config);
+    pub fn run(config: Config, config_existing: bool) -> iced::Result {
+        let (state, task) = setup::State::run(config, config_existing);
         let state = Self::Setup(state);
         let task = task.map(Message::Setup);
         application(WINDOW_TITLE, Self::update, Self::view)
@@ -62,9 +62,7 @@ impl State {
     fn update(&mut self, message: Message) -> Task<Message> {
         match (&mut *self, message) {
             (Self::Setup(state), Message::Setup(message)) => match state.update(message) {
-                setup::Action::None => Task::none(),
-                setup::Action::Exit => {
-                    let (config, client) = state.get_config_and_client();
+                setup::Action::Exit(config, client) => {
                     let (state, task) = main::State::run(config, client);
                     let task = task.map(Message::Main);
                     *self = Self::Main(state);
@@ -72,7 +70,15 @@ impl State {
                 }
                 setup::Action::Task(task) => task.map(Message::Setup),
             },
-            (Self::Main(state), Message::Main(message)) => state.update(message).map(Message::Main),
+            (Self::Main(state), Message::Main(message)) => match state.update(message) {
+                main::Action::Exit(config) => {
+                    let (state, task) = setup::State::run(config, false);
+                    let task = task.map(Message::Setup);
+                    *self = Self::Setup(state);
+                    task
+                }
+                main::Action::Task(task) => task.map(Message::Main),
+            },
             _ => unreachable!(),
         }
     }

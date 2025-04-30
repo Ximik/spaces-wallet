@@ -7,7 +7,7 @@ mod sign;
 mod spaces;
 
 use iced::{
-    Center, Element, Fill, Subscription, Task, Theme, clipboard, exit, time,
+    Center, Element, Fill, Subscription, Task, Theme, clipboard, time,
     widget::{Column, button, center, column, container, row, text, vertical_rule, vertical_space},
 };
 
@@ -16,6 +16,36 @@ use crate::{
     state::*,
     widget::icon::{Icon, text_icon},
 };
+
+#[derive(Debug, Clone, Copy, PartialEq, Eq)]
+enum Screen {
+    Home,
+    Send,
+    Receive,
+    Spaces,
+    Market,
+    Sign,
+    Settings,
+}
+
+#[derive(Debug)]
+pub struct State {
+    config: Config,
+    client: Client,
+    screen: Screen,
+    tip_height: u32,
+    blocks_height: u32,
+    headers_height: u32,
+    wallets: WalletsCollection,
+    spaces: SpacesCollection,
+    home_screen: home::State,
+    send_screen: send::State,
+    receive_screen: receive::State,
+    spaces_screen: spaces::State,
+    market_screen: market::State,
+    sign_screen: sign::State,
+    settings_screen: settings::State,
+}
 
 #[derive(Debug, Clone)]
 pub enum Route {
@@ -51,34 +81,9 @@ pub enum Message {
     SettingsScreen(settings::Message),
 }
 
-#[derive(Debug, Clone, Copy, PartialEq, Eq)]
-enum Screen {
-    Home,
-    Send,
-    Receive,
-    Spaces,
-    Market,
-    Sign,
-    Settings,
-}
-
-#[derive(Debug)]
-pub struct State {
-    config: Config,
-    client: Client,
-    screen: Screen,
-    tip_height: u32,
-    blocks_height: u32,
-    headers_height: u32,
-    wallets: WalletsCollection,
-    spaces: SpacesCollection,
-    home_screen: home::State,
-    send_screen: send::State,
-    receive_screen: receive::State,
-    spaces_screen: spaces::State,
-    market_screen: market::State,
-    sign_screen: sign::State,
-    settings_screen: settings::State,
+pub enum Action {
+    Exit(Config),
+    Task(Task<Message>),
 }
 
 impl State {
@@ -226,7 +231,7 @@ impl State {
         }
     }
 
-    pub fn update(&mut self, message: Message) -> Task<Message> {
+    pub fn update(&mut self, message: Message) -> Action {
         match message {
             Message::Tick => {
                 let mut tasks = vec![self.get_server_info(), self.get_wallet_info()];
@@ -243,9 +248,9 @@ impl State {
                     }
                     _ => {}
                 }
-                Task::batch(tasks)
+                Action::Task(Task::batch(tasks))
             }
-            Message::NavigateTo(route) => self.navigate_to(route),
+            Message::NavigateTo(route) => Action::Task(self.navigate_to(route)),
             Message::ServerInfo(result) => {
                 match result {
                     Ok(server_info) => {
@@ -259,9 +264,9 @@ impl State {
                         self.headers_height = 0;
                     }
                 }
-                Task::none()
+                Action::Task(Task::none())
             }
-            Message::ListWallets(result) => match result {
+            Message::ListWallets(result) => Action::Task(match result {
                 Ok(wallets_names) => {
                     self.wallets.set_wallets(&wallets_names);
                     if self.wallets.get_current().is_none() {
@@ -278,14 +283,12 @@ impl State {
                     }
                 }
                 Err(_) => self.list_wallets(),
-            },
-            Message::WalletLoad(result) => {
-                if result.result.is_ok() {
-                    Task::batch([self.get_wallet_info(), self.navigate_to(Route::Home)])
-                } else {
-                    Task::none()
-                }
-            }
+            }),
+            Message::WalletLoad(result) => Action::Task(if result.result.is_ok() {
+                Task::batch([self.get_wallet_info(), self.navigate_to(Route::Home)])
+            } else {
+                Task::none()
+            }),
             Message::WalletInfo(WalletResult {
                 label: wallet,
                 result,
@@ -295,7 +298,7 @@ impl State {
                         wallet_state.tip = wallet_info.info.tip;
                     }
                 }
-                Task::none()
+                Action::Task(Task::none())
             }
             Message::WalletBalance(WalletResult {
                 label: wallet,
@@ -306,7 +309,7 @@ impl State {
                         wallet_state.balance = balance.balance;
                     }
                 }
-                Task::none()
+                Action::Task(Task::none())
             }
             Message::WalletSpaces(WalletResult {
                 label: wallet,
@@ -329,7 +332,7 @@ impl State {
                         wallet_state.owned_spaces = collect(spaces.owned);
                     }
                 }
-                Task::none()
+                Action::Task(Task::none())
             }
             Message::WalletTransactions(WalletResult {
                 label: wallet,
@@ -340,7 +343,7 @@ impl State {
                         wallet_state.transactions = transactions;
                     }
                 }
-                Task::none()
+                Action::Task(Task::none())
             }
             Message::WalletAddress(WalletResult {
                 label: wallet,
@@ -355,15 +358,15 @@ impl State {
                         }
                     }
                 }
-                Task::none()
+                Action::Task(Task::none())
             }
             Message::SpaceInfo(result) => {
                 if let Ok((slabel, out)) = result {
                     self.spaces.set(slabel, out)
                 }
-                Task::none()
+                Action::Task(Task::none())
             }
-            Message::HomeScreen(message) => match self.home_screen.update(message) {
+            Message::HomeScreen(message) => Action::Task(match self.home_screen.update(message) {
                 home::Action::WriteClipboard(s) => clipboard::write(s),
                 home::Action::ShowSpace { slabel } => self.navigate_to(Route::Space(slabel)),
                 home::Action::GetTransactions => self.get_wallet_transactions(),
@@ -378,8 +381,8 @@ impl State {
                         Message::HomeScreen(home::Message::BumpFeeResult(r.result.map(|_| ())))
                     }),
                 home::Action::None => Task::none(),
-            },
-            Message::SendScreen(message) => match self.send_screen.update(message) {
+            }),
+            Message::SendScreen(message) => Action::Task(match self.send_screen.update(message) {
                 send::Action::SendCoins {
                     recipient,
                     amount,
@@ -412,89 +415,103 @@ impl State {
                     }),
                 send::Action::ShowTransactions => self.navigate_to(Route::Home),
                 send::Action::None => Task::none(),
-            },
-            Message::ReceiveScreen(message) => match self.receive_screen.update(message) {
-                receive::Action::WriteClipboard(s) => clipboard::write(s),
-                receive::Action::None => Task::none(),
-            },
-            Message::SpacesScreen(message) => match self.spaces_screen.update(message) {
-                spaces::Action::WriteClipboard(s) => clipboard::write(s),
-                spaces::Action::GetSpaceInfo { slabel } => self.get_space_info(slabel),
-                spaces::Action::OpenSpace {
-                    slabel,
-                    amount,
-                    fee_rate,
-                } => self
-                    .client
-                    .open_space(
-                        self.wallets.get_current().unwrap().label.clone(),
+            }),
+            Message::ReceiveScreen(message) => {
+                Action::Task(match self.receive_screen.update(message) {
+                    receive::Action::WriteClipboard(s) => clipboard::write(s),
+                    receive::Action::None => Task::none(),
+                })
+            }
+            Message::SpacesScreen(message) => {
+                Action::Task(match self.spaces_screen.update(message) {
+                    spaces::Action::WriteClipboard(s) => clipboard::write(s),
+                    spaces::Action::GetSpaceInfo { slabel } => self.get_space_info(slabel),
+                    spaces::Action::OpenSpace {
                         slabel,
                         amount,
                         fee_rate,
-                    )
-                    .map(|r| {
-                        Message::SpacesScreen(spaces::Message::ClientResult(r.result.map(|_| ())))
-                    }),
-                spaces::Action::BidSpace {
-                    slabel,
-                    amount,
-                    fee_rate,
-                } => self
-                    .client
-                    .bid_space(
-                        self.wallets.get_current().unwrap().label.clone(),
+                    } => self
+                        .client
+                        .open_space(
+                            self.wallets.get_current().unwrap().label.clone(),
+                            slabel,
+                            amount,
+                            fee_rate,
+                        )
+                        .map(|r| {
+                            Message::SpacesScreen(spaces::Message::ClientResult(
+                                r.result.map(|_| ()),
+                            ))
+                        }),
+                    spaces::Action::BidSpace {
                         slabel,
                         amount,
                         fee_rate,
-                    )
-                    .map(|r| {
-                        Message::SpacesScreen(spaces::Message::ClientResult(r.result.map(|_| ())))
-                    }),
-                spaces::Action::RegisterSpace { slabel, fee_rate } => self
-                    .client
-                    .register_space(
-                        self.wallets.get_current().unwrap().label.clone(),
-                        slabel,
-                        fee_rate,
-                    )
-                    .map(|r| {
-                        Message::SpacesScreen(spaces::Message::ClientResult(r.result.map(|_| ())))
-                    }),
-                spaces::Action::RenewSpace { slabel, fee_rate } => self
-                    .client
-                    .renew_space(
-                        self.wallets.get_current().unwrap().label.clone(),
-                        slabel,
-                        fee_rate,
-                    )
-                    .map(|r| {
-                        Message::SpacesScreen(spaces::Message::ClientResult(r.result.map(|_| ())))
-                    }),
-                spaces::Action::ShowTransactions => self.navigate_to(Route::Home),
-                spaces::Action::None => Task::none(),
-            },
-            Message::MarketScreen(message) => match self.market_screen.update(message) {
-                market::Action::Buy { listing, fee_rate } => self
-                    .client
-                    .buy_space(
-                        self.wallets.get_current().unwrap().label.clone(),
-                        listing,
-                        fee_rate,
-                    )
-                    .map(|r| Message::MarketScreen(market::Message::BuyResult(r.result))),
-                market::Action::Sell { slabel, price } => self
-                    .client
-                    .sell_space(
-                        self.wallets.get_current().unwrap().label.clone(),
-                        slabel,
-                        price,
-                    )
-                    .map(|r| Message::MarketScreen(market::Message::SellResult(r.result))),
-                market::Action::WriteClipboard(s) => clipboard::write(s),
-                market::Action::ShowTransactions => self.navigate_to(Route::Home),
-                market::Action::None => Task::none(),
-            },
-            Message::SignScreen(message) => match self.sign_screen.update(message) {
+                    } => self
+                        .client
+                        .bid_space(
+                            self.wallets.get_current().unwrap().label.clone(),
+                            slabel,
+                            amount,
+                            fee_rate,
+                        )
+                        .map(|r| {
+                            Message::SpacesScreen(spaces::Message::ClientResult(
+                                r.result.map(|_| ()),
+                            ))
+                        }),
+                    spaces::Action::RegisterSpace { slabel, fee_rate } => self
+                        .client
+                        .register_space(
+                            self.wallets.get_current().unwrap().label.clone(),
+                            slabel,
+                            fee_rate,
+                        )
+                        .map(|r| {
+                            Message::SpacesScreen(spaces::Message::ClientResult(
+                                r.result.map(|_| ()),
+                            ))
+                        }),
+                    spaces::Action::RenewSpace { slabel, fee_rate } => self
+                        .client
+                        .renew_space(
+                            self.wallets.get_current().unwrap().label.clone(),
+                            slabel,
+                            fee_rate,
+                        )
+                        .map(|r| {
+                            Message::SpacesScreen(spaces::Message::ClientResult(
+                                r.result.map(|_| ()),
+                            ))
+                        }),
+                    spaces::Action::ShowTransactions => self.navigate_to(Route::Home),
+                    spaces::Action::None => Task::none(),
+                })
+            }
+            Message::MarketScreen(message) => {
+                Action::Task(match self.market_screen.update(message) {
+                    market::Action::Buy { listing, fee_rate } => self
+                        .client
+                        .buy_space(
+                            self.wallets.get_current().unwrap().label.clone(),
+                            listing,
+                            fee_rate,
+                        )
+                        .map(|r| Message::MarketScreen(market::Message::BuyResult(r.result))),
+                    market::Action::Sell { slabel, price } => self
+                        .client
+                        .sell_space(
+                            self.wallets.get_current().unwrap().label.clone(),
+                            slabel,
+                            price,
+                        )
+                        .map(|r| Message::MarketScreen(market::Message::SellResult(r.result))),
+                    market::Action::WriteClipboard(s) => clipboard::write(s),
+                    market::Action::ShowTransactions => self.navigate_to(Route::Home),
+                    market::Action::None => Task::none(),
+                })
+            }
+            Message::SignScreen(message) => Action::Task(match self.sign_screen.update(message) {
                 sign::Action::FilePick => Task::future(async move {
                     let path = rfd::AsyncFileDialog::new()
                         .add_filter("JSON event", &["json"])
@@ -550,16 +567,16 @@ impl State {
                         })
                     }),
                 sign::Action::None => Task::none(),
-            },
+            }),
             Message::SettingsScreen(message) => match self.settings_screen.update(message) {
                 settings::Action::SetCurrentWallet(name) => {
                     self.wallets.set_current(&name);
                     self.config.wallet = Some(name);
                     self.config.save();
-                    self.list_wallets()
+                    Action::Task(self.list_wallets())
                 }
                 settings::Action::ExportWallet(wallet_name) => {
-                    self.client.export_wallet(wallet_name).then(|result| {
+                    Action::Task(self.client.export_wallet(wallet_name).then(|result| {
                         let result = result.result;
                         Task::future(async move {
                             let result = match result {
@@ -583,46 +600,49 @@ impl State {
                             };
                             Message::SettingsScreen(settings::Message::WalletFileSaved(result))
                         })
-                    })
+                    }))
                 }
                 settings::Action::CreateWallet(wallet_name) => {
                     self.config.wallet = None;
                     self.wallets.unset_current();
-                    self.client
-                        .create_wallet(wallet_name)
-                        .map(|r| {
-                            Message::SettingsScreen(settings::Message::WalletCreated(r.result))
-                        })
-                        .chain(self.list_wallets())
+                    Action::Task(
+                        self.client
+                            .create_wallet(wallet_name)
+                            .map(|r| {
+                                Message::SettingsScreen(settings::Message::WalletCreated(r.result))
+                            })
+                            .chain(self.list_wallets()),
+                    )
                 }
-                settings::Action::FilePick => Task::future(async move {
-                    let result = rfd::AsyncFileDialog::new()
-                        .add_filter("wallet file", &["json"])
-                        .pick_file()
-                        .await;
-                    match result {
-                        Some(file) => tokio::fs::read_to_string(file.path()).await.ok(),
-                        None => None,
-                    }
-                })
-                .map(|r| Message::SettingsScreen(settings::Message::WalletFileLoaded(r))),
+                settings::Action::FilePick => Action::Task(
+                    Task::future(async move {
+                        let result = rfd::AsyncFileDialog::new()
+                            .add_filter("wallet file", &["json"])
+                            .pick_file()
+                            .await;
+                        match result {
+                            Some(file) => tokio::fs::read_to_string(file.path()).await.ok(),
+                            None => None,
+                        }
+                    })
+                    .map(|r| Message::SettingsScreen(settings::Message::WalletFileLoaded(r))),
+                ),
                 settings::Action::ImportWallet(contents) => {
                     self.config.wallet = None;
                     self.wallets.unset_current();
-                    self.client
-                        .import_wallet(&contents)
-                        .map(|r| {
-                            Message::SettingsScreen(settings::Message::WalletFileImported(
-                                r.map(|_| ()),
-                            ))
-                        })
-                        .chain(self.list_wallets())
+                    Action::Task(
+                        self.client
+                            .import_wallet(&contents)
+                            .map(|r| {
+                                Message::SettingsScreen(settings::Message::WalletFileImported(
+                                    r.map(|_| ()),
+                                ))
+                            })
+                            .chain(self.list_wallets()),
+                    )
                 }
-                settings::Action::ResetBackend => {
-                    self.config.remove();
-                    exit()
-                }
-                settings::Action::None => Task::none(),
+                settings::Action::ResetBackend => Action::Exit(self.config.clone()),
+                settings::Action::None => Action::Task(Task::none()),
             },
         }
     }
