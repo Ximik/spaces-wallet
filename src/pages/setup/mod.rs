@@ -100,7 +100,6 @@ impl State {
                     if info.network == self.network.to_string() {
                         self.config.spaced_rpc_url = self.rpc_url.clone();
                         self.config.network = self.network;
-                        self.config.wallet = None;
                         self.config.save();
                         Action::Exit
                     } else {
