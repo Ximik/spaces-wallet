@@ -62,7 +62,7 @@ impl State {
     fn update(&mut self, message: Message) -> Task<Message> {
         match (&mut *self, message) {
             (Self::Setup(state), Message::Setup(message)) => match state.update(message) {
-                setup::Action::Exit(config, client) => {
+                setup::Action::Return(config, client) => {
                     let (state, task) = main::State::run(config, client);
                     let task = task.map(Message::Main);
                     *self = Self::Main(state);
@@ -71,7 +71,7 @@ impl State {
                 setup::Action::Task(task) => task.map(Message::Setup),
             },
             (Self::Main(state), Message::Main(message)) => match state.update(message) {
-                main::Action::Exit(config) => {
+                main::Action::Return(config) => {
                     let (state, task) = setup::State::run(config, false);
                     let task = task.map(Message::Setup);
                     *self = Self::Setup(state);

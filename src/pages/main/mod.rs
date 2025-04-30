@@ -83,7 +83,7 @@ pub enum Message {
 }
 
 pub enum Action {
-    Exit(Config),
+    Return(Config),
     Task(Task<Message>),
 }
 
@@ -642,7 +642,7 @@ impl State {
                             .chain(self.list_wallets()),
                     )
                 }
-                settings::Action::ResetBackend => Action::Exit(self.config.clone()),
+                settings::Action::ResetBackend => Action::Return(self.config.clone()),
                 settings::Action::None => Action::Task(Task::none()),
             },
         }
