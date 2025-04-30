@@ -1,29 +1,54 @@
 mod app;
-mod branding;
 mod client;
-mod config;
 mod helpers;
-mod screen;
-mod types;
+mod pages;
 mod widget;
 
-use std::fs;
+use directories::ProjectDirs;
+use serde::{Deserialize, Serialize};
+use std::{fs, path::PathBuf};
 
-pub fn main() -> Result<(), Box<dyn std::error::Error>> {
-    let dirs =
-        directories::ProjectDirs::from("", "", "akron").expect("Failed to build project dir path");
+use spaces_client::config::ExtendedNetwork;
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
+pub struct Config {
+    #[serde(skip)]
+    path: PathBuf,
+    pub spaced_rpc_url: Option<String>,
+    pub network: ExtendedNetwork,
+    pub wallet: Option<String>,
+}
+
+impl Config {
+    fn load(path: PathBuf) -> (Self, bool) {
+        let config: Option<Self> = fs::read_to_string(&path)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok());
+        match config {
+            Some(config) => (Self { path, ..config }, true),
+            None => (
+                Self {
+                    path,
+                    spaced_rpc_url: None,
+                    network: ExtendedNetwork::Mainnet,
+                    wallet: None,
+                },
+                false,
+            ),
+        }
+    }
+
+    pub fn save(&self) {
+        let config = serde_json::to_string_pretty(&self).unwrap();
+        fs::write(&self.path, config).unwrap();
+    }
+}
+pub fn main() -> iced::Result {
+    let dirs = ProjectDirs::from("", "", "akron").unwrap();
     let data_dir = dirs.data_dir();
-    fs::create_dir_all(data_dir)?;
+    fs::create_dir_all(data_dir).unwrap();
 
     let config_path = data_dir.join("config.json");
-    if config_path.exists() {
-        let config = config::Config::load(config_path)?;
-        // run spaced if not standalone
-        let client = client::Client::new(config.spaced_rpc_url.as_ref().unwrap())?;
-        app::App::new(config, client).run()?;
-    } else {
-        let config = config::Config::new(config_path);
-        config.run()?;
-    }
-    Ok(())
+    let (config, config_existing) = Config::load(config_path);
+    app::State::run(config, config_existing)
 }
