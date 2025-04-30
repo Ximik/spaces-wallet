@@ -3,7 +3,6 @@ mod client;
 mod helpers;
 mod pages;
 mod state;
-mod types;
 mod widget;
 
 use std::fs;

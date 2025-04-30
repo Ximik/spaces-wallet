@@ -2,7 +2,8 @@ use iced::Element;
 use iced::widget::column;
 
 use crate::{
-    types::*,
+    client::*,
+    helpers::*,
     widget::{
         form::Form,
         tabs::TabsRow,

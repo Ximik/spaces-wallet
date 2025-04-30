@@ -1,5 +1,5 @@
 use crate::{
-    types::*,
+    client::*,
     widget::{
         form::Form,
         text::{error_block, text_big},

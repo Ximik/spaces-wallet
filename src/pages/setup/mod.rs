@@ -1,6 +1,6 @@
 use iced::{
-    Element, Task,
-    widget::{center, checkbox, column},
+    Center, Element, Fill, Task,
+    widget::{checkbox, column, container},
 };
 
 use spaces_client::config::ExtendedNetwork;
@@ -119,7 +119,7 @@ impl State {
     }
 
     pub fn view(&self) -> Element<Message> {
-        center(
+        container(
             column![
                 error_block(self.error.as_ref()),
                 column![
@@ -143,7 +143,7 @@ impl State {
                     )
                 ]
                 .spacing(10),
-                center(submit_button(
+                container(submit_button(
                     "Connect",
                     if self.client.is_some() || self.rpc_url.as_ref().is_some_and(|s| s.is_empty())
                     {
@@ -152,10 +152,12 @@ impl State {
                         Some(Message::Connect)
                     }
                 ))
+                .align_x(Center)
+                .width(Fill)
             ]
             .spacing(10),
         )
-        .padding(20)
+        .padding(100)
         .into()
     }
 

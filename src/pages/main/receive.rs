@@ -1,6 +1,6 @@
 use crate::{
+    client::*,
     state::AddressData,
-    types::*,
     widget::{
         icon::{Icon, button_icon},
         tabs::TabsRow,

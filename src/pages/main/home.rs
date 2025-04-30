@@ -1,17 +1,21 @@
-use crate::{
-    helpers::{format_amount, format_amount_number, height_to_past_est},
-    types::*,
-    widget::{
-        form::Form,
-        icon::{Icon, button_icon, text_icon},
-        text::{error_block, text_big, text_bold, text_monospace, text_monospace_bold, text_small},
-    },
-};
+use serde::Deserialize;
+use std::str::FromStr;
+
 use iced::{
     Center, Element, Fill, FillPortion, Theme,
     widget::{
         Column, Row, Space, button, center, column, container, horizontal_rule, horizontal_space,
         row, scrollable, text,
+    },
+};
+
+use crate::{
+    client::*,
+    helpers::*,
+    widget::{
+        form::Form,
+        icon::{Icon, button_icon, text_icon},
+        text::{error_block, text_big, text_bold, text_monospace, text_monospace_bold, text_small},
     },
 };
 

@@ -1,7 +1,7 @@
 use crate::{
-    helpers::{format_amount, height_to_future_est},
+    client::*,
+    helpers::*,
     state::SpacesCollection,
-    types::*,
     widget::{
         form::{Form, text_input},
         icon::{Icon, button_icon, text_icon, text_input_icon},
@@ -17,7 +17,6 @@ use iced::{
         text,
     },
 };
-use spaces_wallet::bitcoin::OutPoint;
 
 #[derive(Debug, Clone, Default, PartialEq, Eq)]
 pub enum Filter {

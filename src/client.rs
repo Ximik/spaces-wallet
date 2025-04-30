@@ -4,21 +4,25 @@ use jsonrpsee::{
     http_client::{HttpClient, HttpClientBuilder},
 };
 
+use spaces_client::rpc::{
+    BidParams, OpenParams, RegisterParams, RpcClient, RpcWalletRequest, RpcWalletTxBuilder,
+    SendCoinsParams, TransferSpacesParams,
+};
+
 pub use spaces_client::{
     rpc::ServerInfo,
     wallets::{AddressKind, ListSpacesResponse, TxInfo, WalletInfoWithProgress, WalletResponse},
 };
-pub use spaces_protocol::{FullSpaceOut, bitcoin::Txid, slabel::SLabel};
+pub use spaces_protocol::{Covenant, FullSpaceOut, bitcoin::Txid, slabel::SLabel};
 pub use spaces_wallet::{
     Balance, Listing,
-    bitcoin::{Amount, FeeRate},
+    bitcoin::{Amount, FeeRate, OutPoint},
     export::WalletExport,
     nostr::NostrEvent,
-};
-
-use spaces_client::rpc::{
-    BidParams, OpenParams, RegisterParams, RpcClient, RpcWalletRequest, RpcWalletTxBuilder,
-    SendCoinsParams, TransferSpacesParams,
+    tx_event::{
+        BidEventDetails, BidoutEventDetails, OpenEventDetails, SendEventDetails, TxEvent,
+        TxEventKind,
+    },
 };
 
 #[derive(Debug)]
