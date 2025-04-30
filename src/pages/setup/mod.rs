@@ -61,10 +61,6 @@ impl State {
         )
     }
 
-    pub fn split(self) -> (Config, Client) {
-        (self.config, self.client.unwrap())
-    }
-
     pub fn update(&mut self, message: Message) -> Action {
         self.error = None;
         match message {
@@ -161,5 +157,9 @@ impl State {
         )
         .padding(20)
         .into()
+    }
+
+    pub fn get_config_and_client(&mut self) -> (Config, Client) {
+        (self.config.clone(), self.client.take().unwrap())
     }
 }

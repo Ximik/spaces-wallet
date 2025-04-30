@@ -64,8 +64,7 @@ impl State {
             (Self::Setup(state), Message::Setup(message)) => match state.update(message) {
                 setup::Action::None => Task::none(),
                 setup::Action::Exit => {
-                    let state = unsafe { std::ptr::read(state) };
-                    let (config, client) = state.split();
+                    let (config, client) = state.get_config_and_client();
                     let (state, task) = main::State::run(config, client);
                     let task = task.map(Message::Main);
                     *self = Self::Main(state);

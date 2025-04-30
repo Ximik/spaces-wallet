@@ -1,10 +1,10 @@
-pub use spaces_client::wallets::{AddressKind, ListSpacesResponse, TxInfo};
-pub use spaces_protocol::{Covenant, FullSpaceOut, bitcoin::Txid, slabel::SLabel};
+pub use spaces_client::wallets::{AddressKind, TxInfo};
+pub use spaces_protocol::{Covenant, bitcoin::Txid, slabel::SLabel};
 use spaces_wallet::bdk_wallet::serde_json;
 pub use spaces_wallet::{
-    Balance, Listing,
+    Listing,
     bdk_wallet::serde::Deserialize,
-    bitcoin::{Amount, Denomination, FeeRate, OutPoint},
+    bitcoin::{Amount, Denomination, FeeRate},
     nostr::NostrEvent,
     tx_event::{
         BidEventDetails, BidoutEventDetails, OpenEventDetails, SendEventDetails, TxEvent,

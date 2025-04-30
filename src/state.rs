@@ -2,22 +2,11 @@ use iced::widget::qr_code::Data as QrCode;
 use serde::{Deserialize, Serialize};
 use std::{fs, path::PathBuf};
 
-use spaces_client::{
-    config::ExtendedNetwork,
-    wallets::{AddressKind, ListSpacesResponse, TxInfo},
-};
-use spaces_protocol::{Covenant, FullSpaceOut, bitcoin::Txid, slabel::SLabel};
-use spaces_wallet::{
-    Balance, Listing,
-    bitcoin::{Amount, Denomination, FeeRate, OutPoint},
-    nostr::NostrEvent,
-    tx_event::{
-        BidEventDetails, BidoutEventDetails, OpenEventDetails, SendEventDetails, TxEvent,
-        TxEventKind,
-    },
-};
+use spaces_client::{config::ExtendedNetwork, wallets::TxInfo};
+use spaces_protocol::{Covenant, FullSpaceOut, slabel::SLabel};
+use spaces_wallet::bitcoin::{Amount, OutPoint};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(skip)]
     path: PathBuf,
