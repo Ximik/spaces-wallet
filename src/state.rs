@@ -21,28 +21,36 @@ use spaces_wallet::{
 pub struct Config {
     #[serde(skip)]
     path: PathBuf,
+    #[serde(skip)]
+    new: bool,
     pub spaced_rpc_url: Option<String>,
     pub network: ExtendedNetwork,
     pub wallet: Option<String>,
 }
 
 impl Config {
-    pub fn new(path: PathBuf) -> Self {
-        Self {
-            path,
-            spaced_rpc_url: None,
-            network: ExtendedNetwork::Mainnet,
-            wallet: None,
+    pub fn load(path: PathBuf) -> Self {
+        let config: Option<Self> = fs::read_to_string(&path)
+            .ok()
+            .and_then(|c| serde_json::from_str(&c).ok());
+        match config {
+            Some(config) => Self {
+                path,
+                new: false,
+                ..config
+            },
+            None => Self {
+                path,
+                new: true,
+                spaced_rpc_url: None,
+                network: ExtendedNetwork::Mainnet,
+                wallet: None,
+            },
         }
     }
 
-    pub fn load(path: PathBuf) -> Result<Self, Box<dyn std::error::Error>> {
-        let config = fs::read_to_string(&path)?;
-        let config = Self {
-            path,
-            ..serde_json::from_str(&config)?
-        };
-        Ok(config)
+    pub fn is_new(&self) -> bool {
+        self.new
     }
 
     pub fn save(&self) {
