@@ -1,6 +1,6 @@
 use iced::{
     Center, Element, Fill, Task,
-    widget::{button, checkbox, column, container, row},
+    widget::{button, checkbox, column, container, horizontal_space, row},
 };
 
 use spaces_client::config::ExtendedNetwork;
@@ -10,8 +10,8 @@ use crate::{
     client::{Client, ClientResult, ServerInfo},
     widget::{
         form::{pick_list, submit_button, text_input, text_label},
-        icon::{Icon, button_icon},
-        text::{error_block, text_big},
+        icon::{Icon, button_icon, text_icon},
+        text::{error_block, text_big, text_bold},
     },
 };
 
@@ -268,9 +268,24 @@ impl State {
                 .align_y(Center),
                 error_block(self.error.as_ref()),
                 row![
-                    submit_button("Create wallet", Some(Message::CreateWallet)),
-                    submit_button("Import wallet", Some(Message::ImportWallet)),
-                ],
+                    horizontal_space(),
+                    column![
+                        text_icon(Icon::NewSection).size(150),
+                        text_bold("Create a new spaces wallet"),
+                        submit_button("Create wallet", Some(Message::CreateWallet)),
+                    ]
+                    .align_x(Center)
+                    .spacing(30),
+                    column![
+                        text_icon(Icon::FolderDown).size(150),
+                        text_bold("Load an existing spaces wallet"),
+                        submit_button("Import wallet", Some(Message::ImportWallet)),
+                    ]
+                    .align_x(Center)
+                    .spacing(30),
+                    horizontal_space(),
+                ]
+                .spacing(200),
             ]
             .spacing(10)
         })

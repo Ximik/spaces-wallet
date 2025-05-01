@@ -5,11 +5,13 @@ pub enum Icon {
     Copy,
     BuildingBank,
     ArrowBigUpLines,
+    FolderDown,
     ArrowDownToArc,
     ArrowDownFromArc,
     Signature,
     ChevronLeft,
     At,
+    NewSection,
 }
 impl Icon {
     pub fn as_char(&self) -> char {
@@ -19,11 +21,13 @@ impl Icon {
             Icon::Copy => '\u{E002}',
             Icon::BuildingBank => '\u{E003}',
             Icon::ArrowBigUpLines => '\u{E004}',
-            Icon::ArrowDownToArc => '\u{E006}',
-            Icon::ArrowDownFromArc => '\u{E007}',
-            Icon::Signature => '\u{E008}',
-            Icon::ChevronLeft => '\u{E009}',
-            Icon::At => '\u{E00A}',
+            Icon::FolderDown => '\u{E006}',
+            Icon::ArrowDownToArc => '\u{E007}',
+            Icon::ArrowDownFromArc => '\u{E008}',
+            Icon::Signature => '\u{E009}',
+            Icon::ChevronLeft => '\u{E00A}',
+            Icon::At => '\u{E00B}',
+            Icon::NewSection => '\u{E00C}',
         }
     }
 }
