@@ -35,8 +35,6 @@ pub struct State {
     client: Client,
     screen: Screen,
     tip_height: u32,
-    blocks_height: u32,
-    headers_height: u32,
     wallets: state::WalletsCollection,
     spaces: state::SpacesCollection,
     home_screen: home::State,
@@ -94,8 +92,6 @@ impl State {
             client,
             screen: Screen::Home,
             tip_height: 0,
-            blocks_height: 0,
-            headers_height: 0,
             wallets: Default::default(),
             spaces: Default::default(),
             home_screen: Default::default(),
@@ -253,17 +249,8 @@ impl State {
             }
             Message::NavigateTo(route) => Action::Task(self.navigate_to(route)),
             Message::ServerInfo(result) => {
-                match result {
-                    Ok(server_info) => {
-                        self.tip_height = server_info.tip.height;
-                        self.blocks_height = server_info.chain.blocks;
-                        self.headers_height = server_info.chain.headers;
-                    }
-                    Err(_) => {
-                        self.tip_height = 0;
-                        self.blocks_height = 0;
-                        self.headers_height = 0;
-                    }
+                if let Ok(server_info) = result {
+                    self.tip_height = server_info.chain.headers;
                 }
                 Action::Task(Task::none())
             }
@@ -296,7 +283,7 @@ impl State {
             }) => {
                 if let Ok(wallet_info) = result {
                     if let Some(wallet_state) = self.wallets.get_data_mut(&wallet) {
-                        wallet_state.tip = wallet_info.info.tip;
+                        wallet_state.status = wallet_info.status;
                     }
                 }
                 Action::Task(Task::none())
@@ -649,33 +636,6 @@ impl State {
     }
 
     pub fn view(&self) -> Element<Message> {
-        let loading_text = || -> Option<String> {
-            if self.headers_height == 0 {
-                return Some("Loading bitcoin data".to_string());
-            }
-            if self.blocks_height + 1 < self.headers_height {
-                return Some(format!(
-                    "Syncing bitcoin data {} / {}",
-                    self.blocks_height, self.headers_height,
-                ));
-            }
-            if self.tip_height + 1 < self.blocks_height {
-                return Some(format!(
-                    "Syncing spaces data {} / {}",
-                    self.tip_height, self.blocks_height,
-                ));
-            }
-            if let Some(wallet) = self.wallets.get_current() {
-                if wallet.state.tip + 1 < self.tip_height {
-                    return Some(format!(
-                        "Syncing wallet data {} / {}",
-                        wallet.state.tip, self.tip_height,
-                    ));
-                }
-            }
-            None
-        };
-
         let navbar_button = |label, icon: Icon, route: Route, screen: Screen| {
             let button = button(
                 row![text_icon(icon).size(20), text(label).size(16)]
@@ -696,7 +656,23 @@ impl State {
         };
 
         Column::new()
-            .push_maybe(loading_text().map(|t| {
+            .push_maybe(self.wallets.get_current().and_then(|wallet| {
+                use spaces_client::wallets::WalletProgressUpdate;
+                match wallet.state.status {
+                    WalletProgressUpdate::SourceSync { total, completed } |
+                    WalletProgressUpdate::CbfFilterSync { total, completed } |
+                    WalletProgressUpdate::CbfProcessFilters { total, completed } |
+                    WalletProgressUpdate::CbfDownloadMatchingBlocks { total, completed } |
+                    WalletProgressUpdate::CbfProcessMatchingBlocks { total, completed } => {
+                        Some(format!("Syncing {} / {}", completed, total))
+                    },
+                    WalletProgressUpdate::CbfApplyUpdate |
+                    WalletProgressUpdate::Syncing => {
+                        Some("Syncing".to_string())
+                    },
+                    WalletProgressUpdate::Complete => None,
+                }
+            }).map(|t| {
                 container(text(t).align_x(Center).width(Fill))
                     .style(|theme: &Theme| {
                         container::Style::default()
@@ -735,7 +711,7 @@ impl State {
                         if let Some(wallet) = self.wallets.get_current() {
                             self.home_screen
                                 .view(
-                                    self.blocks_height,
+                                    self.tip_height,
                                     wallet.state.balance,
                                     &wallet.state.transactions,
                                 )
@@ -766,7 +742,7 @@ impl State {
                         if let Some(wallet) = self.wallets.get_current() {
                             self.spaces_screen
                                 .view(
-                                    self.blocks_height,
+                                    self.tip_height,
                                     &self.spaces,
                                     &wallet.state.winning_spaces,
                                     &wallet.state.outbid_spaces,
@@ -806,12 +782,7 @@ impl State {
 
     pub fn subscription(&self) -> Subscription<Message> {
         time::every(
-            if self.tip_height != 0
-                && self
-                    .wallets
-                    .get_current()
-                    .is_some_and(|wallet| wallet.state.tip >= self.headers_height)
-            {
+            if self.tip_height != 0 && self.wallets.get_current().is_some_and(|w| w.is_synced()) {
                 time::Duration::from_secs(30)
             } else {
                 time::Duration::from_secs(5)

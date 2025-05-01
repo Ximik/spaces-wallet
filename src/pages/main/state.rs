@@ -1,6 +1,6 @@
 use iced::widget::qr_code::Data as QrCode;
 
-use spaces_client::wallets::TxInfo;
+use spaces_client::wallets::{TxInfo, WalletProgressUpdate};
 use spaces_protocol::{Covenant, FullSpaceOut, slabel::SLabel};
 use spaces_wallet::bitcoin::{Amount, OutPoint};
 
@@ -53,9 +53,9 @@ impl AddressData {
     }
 }
 
-#[derive(Debug, Default)]
+#[derive(Debug)]
 pub struct WalletData {
-    pub tip: u32,
+    pub status: WalletProgressUpdate,
     pub balance: Amount,
     pub coin_address: Option<AddressData>,
     pub space_address: Option<AddressData>,
@@ -65,9 +65,29 @@ pub struct WalletData {
     pub transactions: Vec<TxInfo>,
 }
 
+impl Default for WalletData {
+    fn default() -> Self {
+        Self {
+            status: WalletProgressUpdate::Syncing,
+            balance: Amount::ZERO,
+            coin_address: None,
+            space_address: None,
+            winning_spaces: Vec::new(),
+            outbid_spaces: Vec::new(),
+            owned_spaces: Vec::new(),
+            transactions: Vec::new(),
+        }
+    }
+}
+
 pub struct WalletEntry<'a> {
     pub label: &'a String,
     pub state: &'a WalletData,
+}
+impl WalletEntry<'_> {
+    pub fn is_synced(&self) -> bool {
+        matches!(self.state.status, WalletProgressUpdate::Complete)
+    }
 }
 
 #[derive(Debug, Default)]
