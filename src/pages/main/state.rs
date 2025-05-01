@@ -1,6 +1,6 @@
 use iced::widget::qr_code::Data as QrCode;
 
-use spaces_client::wallets::{TxInfo, WalletProgressUpdate};
+use spaces_client::wallets::{TxInfo, WalletInfoWithProgress, WalletProgressUpdate};
 use spaces_protocol::{Covenant, FullSpaceOut, slabel::SLabel};
 use spaces_wallet::bitcoin::{Amount, OutPoint};
 
@@ -53,9 +53,9 @@ impl AddressData {
     }
 }
 
-#[derive(Debug)]
+#[derive(Debug, Default)]
 pub struct WalletData {
-    pub status: WalletProgressUpdate,
+    pub info: Option<WalletInfoWithProgress>,
     pub balance: Amount,
     pub coin_address: Option<AddressData>,
     pub space_address: Option<AddressData>,
@@ -64,29 +64,66 @@ pub struct WalletData {
     pub owned_spaces: Vec<SLabel>,
     pub transactions: Vec<TxInfo>,
 }
-
-impl Default for WalletData {
-    fn default() -> Self {
-        Self {
-            status: WalletProgressUpdate::Syncing,
-            balance: Amount::ZERO,
-            coin_address: None,
-            space_address: None,
-            winning_spaces: Vec::new(),
-            outbid_spaces: Vec::new(),
-            owned_spaces: Vec::new(),
-            transactions: Vec::new(),
-        }
-    }
-}
-
 pub struct WalletEntry<'a> {
     pub label: &'a String,
     pub state: &'a WalletData,
 }
 impl WalletEntry<'_> {
     pub fn is_synced(&self) -> bool {
-        matches!(self.state.status, WalletProgressUpdate::Complete)
+        self.state
+            .info
+            .as_ref()
+            .is_some_and(|info| matches!(info.status, WalletProgressUpdate::Complete))
+    }
+
+    pub fn sync_status_string(&self) -> String {
+        if let Some(info) = self.state.info.as_ref() {
+            match info.status {
+                WalletProgressUpdate::SourceSync { total, completed } => format!(
+                    "Source syncing: {}/{} ({:.1}%)",
+                    completed,
+                    total,
+                    (completed as f64 / total as f64) * 100.0
+                ),
+                WalletProgressUpdate::CbfFilterSync { total, completed } => format!(
+                    "Filters syncing: {}/{} ({:.1}%)",
+                    completed,
+                    total,
+                    (completed as f64 / total as f64) * 100.0
+                ),
+                WalletProgressUpdate::CbfProcessFilters { total, completed } => format!(
+                    "Processing filters: {}/{} ({:.1}%)",
+                    completed,
+                    total,
+                    (completed as f64 / total as f64) * 100.0
+                ),
+                WalletProgressUpdate::CbfDownloadMatchingBlocks { total, completed } => {
+                    format!(
+                        "Downloading matching blocks: {}/{} ({:.1}%)",
+                        completed,
+                        total,
+                        (completed as f64 / total as f64) * 100.0
+                    )
+                }
+                WalletProgressUpdate::CbfProcessMatchingBlocks { total, completed } => {
+                    format!(
+                        "Processing matching blocks: {}/{} ({:.1}%)",
+                        completed,
+                        total,
+                        (completed as f64 / total as f64) * 100.0
+                    )
+                }
+                WalletProgressUpdate::Syncing => {
+                    format!("Syncing: ({:.1}%)", info.info.progress * 100.0)
+                }
+                WalletProgressUpdate::CbfApplyUpdate => {
+                    "Applying compact filters update".to_string()
+                }
+                WalletProgressUpdate::Complete => "Synced".to_string(),
+            }
+        } else {
+            "Loading".to_string()
+        }
     }
 }
 

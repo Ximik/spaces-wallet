@@ -283,7 +283,7 @@ impl State {
             }) => {
                 if let Ok(wallet_info) = result {
                     if let Some(wallet_state) = self.wallets.get_data_mut(&wallet) {
-                        wallet_state.status = wallet_info.status;
+                        wallet_state.info = Some(wallet_info);
                     }
                 }
                 Action::Task(Task::none())
@@ -656,31 +656,26 @@ impl State {
         };
 
         Column::new()
-            .push_maybe(self.wallets.get_current().and_then(|wallet| {
-                use spaces_client::wallets::WalletProgressUpdate;
-                match wallet.state.status {
-                    WalletProgressUpdate::SourceSync { total, completed } |
-                    WalletProgressUpdate::CbfFilterSync { total, completed } |
-                    WalletProgressUpdate::CbfProcessFilters { total, completed } |
-                    WalletProgressUpdate::CbfDownloadMatchingBlocks { total, completed } |
-                    WalletProgressUpdate::CbfProcessMatchingBlocks { total, completed } => {
-                        Some(format!("Syncing {} / {}", completed, total))
-                    },
-                    WalletProgressUpdate::CbfApplyUpdate |
-                    WalletProgressUpdate::Syncing => {
-                        Some("Syncing".to_string())
-                    },
-                    WalletProgressUpdate::Complete => None,
-                }
-            }).map(|t| {
-                container(text(t).align_x(Center).width(Fill))
-                    .style(|theme: &Theme| {
-                        container::Style::default()
-                            .background(theme.extended_palette().secondary.base.color)
+            .push_maybe(
+                self.wallets
+                    .get_current()
+                    .and_then(|wallet| {
+                        if !wallet.is_synced() {
+                            Some(wallet.sync_status_string())
+                        } else {
+                            None
+                        }
                     })
-                    .width(Fill)
-                    .padding([10, 0])
-            }))
+                    .map(|t| {
+                        container(text(t).align_x(Center).width(Fill))
+                            .style(|theme: &Theme| {
+                                container::Style::default()
+                                    .background(theme.extended_palette().secondary.base.color)
+                            })
+                            .width(Fill)
+                            .padding([10, 0])
+                    }),
+            )
             .push(row![
                 column![
                     navbar_button("Home", Icon::CurrencyBitcoin, Route::Home, Screen::Home,),
