@@ -11,36 +11,54 @@ use std::{fs, path::PathBuf};
 use spaces_client::config::ExtendedNetwork;
 
 #[derive(Debug, Clone, Serialize, Deserialize)]
+pub enum ConfigBackend {
+    Embedded {
+        network: ExtendedNetwork,
+    },
+    Bitcoind {
+        network: ExtendedNetwork,
+        url: String,
+        cookie: String,
+        user: String,
+        password: String,
+    },
+    Spaced {
+        network: ExtendedNetwork,
+        url: String,
+    },
+}
+
+#[derive(Debug, Clone, Serialize, Deserialize)]
 pub struct Config {
     #[serde(skip)]
     path: PathBuf,
-    pub spaced_rpc_url: Option<String>,
-    pub network: ExtendedNetwork,
+    pub backend: Option<ConfigBackend>,
     pub wallet: Option<String>,
 }
 
 impl Config {
-    fn load(path: PathBuf) -> (Self, bool) {
+    fn load(path: PathBuf) -> Self {
         let config: Option<Self> = fs::read_to_string(&path)
             .ok()
             .and_then(|c| serde_json::from_str(&c).ok());
         match config {
-            Some(config) => (Self { path, ..config }, true),
-            None => (
-                Self {
-                    path,
-                    spaced_rpc_url: None,
-                    network: ExtendedNetwork::Mainnet,
-                    wallet: None,
-                },
-                false,
-            ),
+            Some(config) => Self { path, ..config },
+            None => Self {
+                path,
+                backend: None,
+                wallet: None,
+            },
         }
     }
 
     pub fn save(&self) {
         let config = serde_json::to_string_pretty(&self).unwrap();
         fs::write(&self.path, config).unwrap();
+    }
+
+    pub fn reset(&mut self) {
+        self.backend = None;
+        self.wallet = None;
     }
 }
 pub fn main() -> iced::Result {
@@ -49,6 +67,6 @@ pub fn main() -> iced::Result {
     fs::create_dir_all(data_dir).unwrap();
 
     let config_path = data_dir.join("config.json");
-    let (config, config_existing) = Config::load(config_path);
-    app::State::run(config, config_existing)
+    let config = Config::load(config_path);
+    app::State::run(config)
 }

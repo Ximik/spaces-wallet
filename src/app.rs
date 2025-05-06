@@ -43,8 +43,8 @@ enum Message {
 }
 
 impl State {
-    pub fn run(config: Config, config_existing: bool) -> iced::Result {
-        let (state, task) = setup::State::run(config, config_existing);
+    pub fn run(config: Config) -> iced::Result {
+        let (state, task) = setup::State::run(config);
         let state = Self::Setup(state);
         let task = task.map(Message::Setup);
         application(WINDOW_TITLE, Self::update, Self::view)
@@ -71,8 +71,9 @@ impl State {
                 setup::Action::Task(task) => task.map(Message::Setup),
             },
             (Self::Main(state), Message::Main(message)) => match state.update(message) {
-                main::Action::Return(config) => {
-                    let (state, task) = setup::State::run(config, false);
+                main::Action::Return(mut config) => {
+                    config.reset();
+                    let (state, task) = setup::State::run(config);
                     let task = task.map(Message::Setup);
                     *self = Self::Setup(state);
                     task
