@@ -76,53 +76,43 @@ impl WalletEntry<'_> {
             .is_some_and(|info| matches!(info.status, WalletProgressUpdate::Complete))
     }
 
-    pub fn sync_status_string(&self) -> String {
+    pub fn sync_status_string(&self) -> &'static str {
         if let Some(info) = self.state.info.as_ref() {
             match info.status {
-                WalletProgressUpdate::SourceSync { total, completed } => format!(
-                    "Source syncing: {}/{} ({:.1}%)",
-                    completed,
-                    total,
-                    (completed as f64 / total as f64) * 100.0
-                ),
-                WalletProgressUpdate::CbfFilterSync { total, completed } => format!(
-                    "Filters syncing: {}/{} ({:.1}%)",
-                    completed,
-                    total,
-                    (completed as f64 / total as f64) * 100.0
-                ),
-                WalletProgressUpdate::CbfProcessFilters { total, completed } => format!(
-                    "Processing filters: {}/{} ({:.1}%)",
-                    completed,
-                    total,
-                    (completed as f64 / total as f64) * 100.0
-                ),
-                WalletProgressUpdate::CbfDownloadMatchingBlocks { total, completed } => {
-                    format!(
-                        "Downloading matching blocks: {}/{} ({:.1}%)",
-                        completed,
-                        total,
-                        (completed as f64 / total as f64) * 100.0
-                    )
+                WalletProgressUpdate::SourceSync { .. } => "Source syncing",
+                WalletProgressUpdate::CbfFilterSync { .. } => "Filters syncing",
+                WalletProgressUpdate::CbfProcessFilters { .. } => "Processing filters",
+                WalletProgressUpdate::CbfDownloadMatchingBlocks { .. } => {
+                    "Downloading matching blocks"
                 }
-                WalletProgressUpdate::CbfProcessMatchingBlocks { total, completed } => {
-                    format!(
-                        "Processing matching blocks: {}/{} ({:.1}%)",
-                        completed,
-                        total,
-                        (completed as f64 / total as f64) * 100.0
-                    )
+                WalletProgressUpdate::CbfProcessMatchingBlocks { .. } => {
+                    "Processing matching blocks"
                 }
-                WalletProgressUpdate::Syncing => {
-                    format!("Syncing: ({:.1}%)", info.info.progress * 100.0)
-                }
-                WalletProgressUpdate::CbfApplyUpdate => {
-                    "Applying compact filters update".to_string()
-                }
-                WalletProgressUpdate::Complete => "Synced".to_string(),
+                WalletProgressUpdate::Syncing => "Syncing",
+                WalletProgressUpdate::CbfApplyUpdate => "Applying compact filters update",
+                WalletProgressUpdate::Complete => "Synced",
             }
         } else {
-            "Loading".to_string()
+            "Loading"
+        }
+    }
+
+    pub fn sync_status_percentage(&self) -> f32 {
+        if let Some(info) = self.state.info.as_ref() {
+            match info.status {
+                WalletProgressUpdate::SourceSync { total, completed }
+                | WalletProgressUpdate::CbfFilterSync { total, completed }
+                | WalletProgressUpdate::CbfProcessFilters { total, completed }
+                | WalletProgressUpdate::CbfDownloadMatchingBlocks { total, completed }
+                | WalletProgressUpdate::CbfProcessMatchingBlocks { total, completed } => {
+                    completed as f32 / total as f32
+                }
+                WalletProgressUpdate::Syncing => info.info.progress,
+                WalletProgressUpdate::CbfApplyUpdate => 0.0,
+                WalletProgressUpdate::Complete => 1.0,
+            }
+        } else {
+            0.0
         }
     }
 }

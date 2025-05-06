@@ -9,13 +9,19 @@ mod state;
 
 use iced::{
     Center, Element, Fill, Subscription, Task, Theme, clipboard, time,
-    widget::{Column, button, center, column, container, row, text, vertical_rule, vertical_space},
+    widget::{
+        Column, Stack, button, center, column, container, progress_bar, row, text, vertical_rule,
+        vertical_space,
+    },
 };
 
 use crate::{
     Config,
     client::*,
-    widget::icon::{Icon, text_icon},
+    widget::{
+        icon::{Icon, text_icon},
+        text::text_bold,
+    },
 };
 
 #[derive(Debug, Clone, Copy, PartialEq, Eq)]
@@ -656,26 +662,21 @@ impl State {
         };
 
         Column::new()
-            .push_maybe(
-                self.wallets
-                    .get_current()
-                    .and_then(|wallet| {
-                        if !wallet.is_synced() {
-                            Some(wallet.sync_status_string())
-                        } else {
-                            None
-                        }
-                    })
-                    .map(|t| {
-                        container(text(t).align_x(Center).width(Fill))
-                            .style(|theme: &Theme| {
-                                container::Style::default()
-                                    .background(theme.extended_palette().secondary.base.color)
-                            })
-                            .width(Fill)
-                            .padding([10, 0])
-                    }),
-            )
+            .push_maybe(self.wallets.get_current().and_then(|wallet| {
+                if !wallet.is_synced() {
+                    Some(
+                        Stack::new()
+                            .push(progress_bar(0.0..=1.0, wallet.sync_status_percentage()))
+                            .push(center(text_bold(format!(
+                                "{} ({:.1}%)",
+                                wallet.sync_status_string(),
+                                wallet.sync_status_percentage() * 100.0,
+                            )))),
+                    )
+                } else {
+                    None
+                }
+            }))
             .push(row![
                 column![
                     navbar_button("Home", Icon::CurrencyBitcoin, Route::Home, Screen::Home,),
