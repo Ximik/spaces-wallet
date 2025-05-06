@@ -1,34 +1,6 @@
 use iced::{Color, Element, Subscription, Task, application, theme, window};
-use once_cell::sync::Lazy;
 
 use crate::{Config, pages::*};
-
-pub static WINDOW_TITLE: &str = "Akron";
-
-pub static WINDOW_ICON: Lazy<window::Icon> = Lazy::new(|| {
-    window::icon::from_rgba(include_bytes!("../assets/akron.rgba").to_vec(), 64, 64)
-        .expect("Failed to load icon")
-});
-
-pub static ICONS_FONT: Lazy<&[u8]> = Lazy::new(|| include_bytes!("../assets/icons.ttf").as_slice());
-
-pub static BITCOIN_THEME: Lazy<theme::Theme> = Lazy::new(|| {
-    theme::Theme::custom_with_fn(
-        "Bitcoin".into(),
-        theme::Palette {
-            text: Color::from_rgb8(77, 77, 77),
-            primary: Color::from_rgb8(247, 147, 26),
-            ..theme::Palette::LIGHT
-        },
-        |pallete| {
-            let mut pallete = theme::palette::Extended::generate(pallete);
-            pallete.primary.base.text = Color::WHITE;
-            pallete.primary.strong.text = Color::WHITE;
-            pallete.primary.weak.text = Color::WHITE;
-            pallete
-        },
-    )
-});
 
 #[derive(Debug)]
 pub enum State {
@@ -47,15 +19,38 @@ impl State {
         let (state, task) = setup::State::run(config);
         let state = Self::Setup(state);
         let task = task.map(Message::Setup);
-        application(WINDOW_TITLE, Self::update, Self::view)
-            .font(ICONS_FONT.clone())
+        application("Akron", Self::update, Self::view)
+            .font(include_bytes!("../assets/icons.ttf").as_slice())
             .subscription(Self::subscription)
             .window(window::Settings {
                 min_size: Some((1300.0, 500.0).into()),
-                icon: Some(WINDOW_ICON.clone()),
+                icon: Some(
+                    window::icon::from_rgba(
+                        include_bytes!("../assets/akron.rgba").to_vec(),
+                        64,
+                        64,
+                    )
+                    .expect("Failed to load icon"),
+                ),
                 ..Default::default()
             })
-            .theme(|_| BITCOIN_THEME.clone())
+            .theme(|_| {
+                theme::Theme::custom_with_fn(
+                    "Bitcoin".into(),
+                    theme::Palette {
+                        text: Color::from_rgb8(77, 77, 77),
+                        primary: Color::from_rgb8(247, 147, 26),
+                        ..theme::Palette::LIGHT
+                    },
+                    |pallete| {
+                        let mut pallete = theme::palette::Extended::generate(pallete);
+                        pallete.primary.base.text = Color::WHITE;
+                        pallete.primary.strong.text = Color::WHITE;
+                        pallete.primary.weak.text = Color::WHITE;
+                        pallete
+                    },
+                )
+            })
             .run_with(move || (state, task))
     }
 
