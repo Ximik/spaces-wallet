@@ -3,6 +3,9 @@ name = "akron"
 version = "0.0.1"
 edition = "2024"
 
+[profile.release]
+lto = true
+
 [lints.clippy]
 large_enum_variant = "allow"
 
