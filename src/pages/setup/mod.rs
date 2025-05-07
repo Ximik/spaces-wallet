@@ -260,7 +260,7 @@ impl State {
                     .spacing(30),
                     column![
                         text_icon(Icon::CurrencyBitcoin).size(150),
-                        text_bold("Use your own bitcoind"),
+                        text_bold("Connect your own bitcoind"),
                         submit_button(
                             "Continue",
                             Some(Message::BackendSet(ConfigBackend::Bitcoind {
@@ -276,7 +276,7 @@ impl State {
                     .spacing(30),
                     column![
                         text_icon(Icon::At).size(150),
-                        text_bold("Use your own bitcoind"),
+                        text_bold("Connect your own spaced"),
                         submit_button(
                             "Continue",
                             Some(Message::BackendSet(ConfigBackend::Spaced {

@@ -93,3 +93,19 @@ jobs:
           EOF
 
           tar -czf akron-${{ env.TAG }}-${{ env.OS }}-${{ env.ARCH }}.tar.gz akron-${{ env.TAG }}-${{ env.OS }}-${{ env.ARCH }}
+
+      - name: Create GitHub Release
+        id: create_release
+        uses: softprops/action-gh-release@v2
+        with:
+          tag_name: ${{ env.TAG }}  # Dynamically use the pushed tag
+          name: Release ${{ env.TAG }}  # Use the tag for the release name
+          body: |
+            Akron release of version ${{ env.TAG }}.
+          draft: false
+          prerelease: false
+          files: | 
+            akron-${{ env.TAG }}-${{ env.OS }}-${{ env.ARCH }}.tar.gz
+          make_latest: true
+        env:
+          GITHUB_TOKEN: ${{ secrets.GITHUB_TOKEN }}
